@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AgroSphere</string>
+    <string name="title_activity_main">AgroSphere</string>
+    <string name="login_subtitle">IoT-Based Automated Greenhouse Monitoring System</string>
+    <string name="username_string">Username</string>
+    <string name="password_string">Password</string>
+    <string name="log_in_string">Log In</string>
+    <string name="sign_up_string">Sign Up"</string>
+    <string name="greenhouses_string">Greenhouses</string>
+    <string name="setup_greenhouse_string">Set-up new greenhouse</string>
+    <string name="login_display_dev_text">V.0.1\nDeveloped by Fabian, Sumalinog, and Vicente\nNU Dasmariñas</string>
+    <string name="title_activity_sign_up">SignUpActivity</string>
+</resources>

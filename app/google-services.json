@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "600551436536",
+    "project_id": "agrosphere-fsvdev",
+    "storage_bucket": "agrosphere-fsvdev.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:600551436536:android:38ff8bdb4191bc8364cb0d",
+        "android_client_info": {
+          "package_name": "com.fsvdevs.agrosphere"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2U4oWoR_zwYoojjNxPDEjQzYWmeq9Ws0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
