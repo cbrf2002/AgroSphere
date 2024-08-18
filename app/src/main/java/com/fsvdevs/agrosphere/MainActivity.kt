@@ -42,7 +42,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             AgroSphereTheme {
                 Scaffold(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
                 ) { innerPadding ->
                     LoginScreen(modifier = Modifier.padding(innerPadding))
                 }
@@ -64,7 +66,11 @@ fun LoginScreen(modifier: Modifier = Modifier) {
         var usernameError by remember { mutableStateOf<String?>(null) }
         var passwordError by remember { mutableStateOf<String?>(null) }
 
-        Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .imePadding()
+        ) {
             Column(
                 modifier = modifier
                     .fillMaxSize()
@@ -215,11 +221,12 @@ fun LoginScreen(modifier: Modifier = Modifier) {
             }
             Text(
                 text = stringResource(id = R.string.login_display_dev_text),
-                style = AppTypography.bodySmall,
+                style = AppTypography.labelSmall,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = paddingValue)
+                    .windowInsetsPadding(WindowInsets.ime)
             )
         }
     }

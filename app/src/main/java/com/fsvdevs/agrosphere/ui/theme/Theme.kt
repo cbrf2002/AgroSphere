@@ -279,8 +279,10 @@ fun AgroSphereTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
             val isLightIcons = colorScheme.background.luminance() > 0.5
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isLightIcons
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = isLightIcons
         }
     }
 
