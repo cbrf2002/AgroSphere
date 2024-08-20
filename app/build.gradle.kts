@@ -6,12 +6,13 @@ plugins {
 
 android {
     namespace = "com.fsvdevs.agrosphere"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.fsvdevs.agrosphere"
         minSdk = 31
-        targetSdk = 34
+        //noinspection EditedTargetSdkVersion
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -70,6 +71,7 @@ dependencies {
     implementation(libs.androidx.compiler)
     implementation(libs.androidx.material3.android)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.tools.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
