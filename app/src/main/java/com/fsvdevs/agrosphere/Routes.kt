@@ -1,6 +1,7 @@
 package com.fsvdevs.agrosphere
 
 object Routes {
-    var loginScreen = "screen_login"
-    var homeScreen = "screen_home"
+    const val DASHBOARD_SCREEN = "dashboard"
+    const val MONITOR_SCREEN = "monitor"
+    const val PREFERENCES_SCREEN = "preferences"
 }
