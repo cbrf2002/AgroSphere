@@ -2,6 +2,7 @@ package com.fsvdevs.agrosphere.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import android.view.WindowInsets
 import android.view.WindowInsetsController
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
