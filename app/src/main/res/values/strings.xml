@@ -12,4 +12,5 @@
     <string name="login_display_dev_text">V.0.2 | Developed by Fabian, Sumalinog, and Vicente\nNU Dasmariñas</string>
     <string name="title_activity_sign_up">SignUpActivity</string>
     <string name="title_activity_home">Home</string>
+    <string name="title_activity_dashboard_screen">DashboardScreen</string>
 </resources>
