@@ -279,9 +279,8 @@ fun AgroSphereTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            val backgroundColor = colorScheme.background.toArgb()
-            window.statusBarColor = backgroundColor
-            window.navigationBarColor = backgroundColor
+            window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+            window.navigationBarColor = colorScheme.surfaceContainer.toArgb()
 
             val insetsController = WindowCompat.getInsetsController(window, view)
             val isLightBackground = colorScheme.background.luminance() > 0.5
