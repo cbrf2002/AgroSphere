@@ -1,6 +1,6 @@
 [versions]
 activityCompose = "1.9.1"
-agp = "8.6.0-alpha07"
+agp = "8.6.0"
 compiler = "1.5.15"
 firebaseBom = "33.2.0"
 kotlin = "1.9.25"
