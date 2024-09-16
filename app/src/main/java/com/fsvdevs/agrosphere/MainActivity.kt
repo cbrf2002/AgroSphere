@@ -72,11 +72,6 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Not() {
-    Text("Top Screen")
-}
-
-@Composable
 fun NavRoutes(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
         navController = navController,
