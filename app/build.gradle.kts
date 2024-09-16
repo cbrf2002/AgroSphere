@@ -67,8 +67,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.constraintlayout)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
     implementation(libs.androidx.compiler)
     implementation(libs.androidx.material3.android)
     implementation(libs.androidx.ui.text.google.fonts)
