@@ -2,8 +2,6 @@ package com.fsvdevs.agrosphere.ui.theme
 
 import android.app.Activity
 import android.os.Build
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -19,7 +17,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -280,8 +277,8 @@ fun AgroSphereTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
-            window.navigationBarColor = colorScheme.surfaceContainer.toArgb()
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
 
             val insetsController = WindowCompat.getInsetsController(window, view)
             val isLightBackground = colorScheme.background.luminance() > 0.5
