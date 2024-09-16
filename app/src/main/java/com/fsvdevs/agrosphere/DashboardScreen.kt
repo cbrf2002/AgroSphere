@@ -51,11 +51,6 @@ fun DashboardScreen(navController: NavController) {
     }
 }
 
-@Composable
-fun TopScreen() {
-
-}
-
 @Preview
 @Composable
 fun DashboardScreenPreview() {
