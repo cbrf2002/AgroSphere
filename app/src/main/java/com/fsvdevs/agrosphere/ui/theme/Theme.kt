@@ -261,18 +261,16 @@ val unspecified_scheme = ColorFamily(
 @Composable
 fun AgroSphereTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     content: @Composable() () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+    val colorScheme =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else {
+            if (darkTheme) darkScheme else lightScheme
         }
-        darkTheme -> darkScheme
-        else -> lightScheme
-    }
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

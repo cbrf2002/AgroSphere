@@ -28,9 +28,6 @@ import com.fsvdevs.agrosphere.ui.theme.AppTypography
 @Composable
 fun DashboardScreen(navController: NavController) {
     AgroSphereTheme(isSystemInDarkTheme()) {
-
-        var selectedItem by remember { mutableStateOf(0) }
-
         Scaffold(
             modifier = Modifier
                 .fillMaxSize(),
@@ -40,14 +37,9 @@ fun DashboardScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Color.Cyan),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.greenhouse),
-                    contentDescription = "Green House",
-                    contentScale = ContentScale.Crop
-                )
                 Text(
                     text = "Dashboard!",
                     style = AppTypography.labelSmall,
@@ -57,11 +49,6 @@ fun DashboardScreen(navController: NavController) {
             }
         }
     }
-}
-
-@Composable
-fun TopScreen() {
-
 }
 
 @Preview
