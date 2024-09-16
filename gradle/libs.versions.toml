@@ -2,23 +2,22 @@
 activityCompose = "1.9.1"
 agp = "8.6.0"
 compiler = "1.5.15"
-firebaseBom = "33.2.0"
 kotlin = "1.9.25"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.0"
-activity = "1.9.1"
+activity = "1.9.2"
 constraintlayout = "2.1.4"
-ui = "1.6.8"
-uiToolingPreview = "1.6.8"
-lifecycleRuntimeKtx = "2.8.4"
-composeBom = "2024.08.00"
-composeNavigation = "2.7.7"
+ui = "1.7.1"
+uiToolingPreview = "1.7.1"
+lifecycleRuntimeKtx = "2.8.5"
+composeBom = "2024.09.01"
+composeNavigation = "2.8.0"
 serialization = "1.6.3"
 material3Android = "1.3.0"
-uiTextGoogleFonts = "1.6.8"
+uiTextGoogleFonts = "1.7.1"
 toolsCore = "1.0.0-alpha09"
 
 [libraries]
@@ -26,8 +25,6 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 androidx-compiler = { module = "androidx.compose.compiler:compiler", version.ref = "compiler" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-ui = { module = "androidx.compose.ui:ui", version.ref = "ui" }
-firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
-firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
