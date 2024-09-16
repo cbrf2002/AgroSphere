@@ -3,7 +3,6 @@ package com.fsvdevs.agrosphere
 import android.os.Bundle
 import android.view.Window
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -39,27 +38,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        enableEdgeToEdge()
 
         setContent {
             val isDarkTheme = isSystemInDarkTheme()
-
             val navController = rememberNavController()
             var selectedItem by remember { mutableStateOf(Routes.DASHBOARD_SCREEN) }
-
-            if (!isDarkTheme) {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.light(
-                        android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT
-                    )
-                )
-            } else {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.dark(
-                        android.graphics.Color.TRANSPARENT,
-                    )
-                )
-            }
 
             AgroSphereTheme(isDarkTheme) {
                 Scaffold(
