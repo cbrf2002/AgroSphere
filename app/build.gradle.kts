@@ -60,7 +60,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -77,6 +76,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.mssql.jdbc)
+    implementation("androidx.compose.runtime:runtime-livedata:1.7.1")
+    implementation("androidx.lifecycle:lifecycle-livedata:2.8.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
