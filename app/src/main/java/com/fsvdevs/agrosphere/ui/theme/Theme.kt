@@ -262,15 +262,17 @@ val unspecified_scheme = ColorFamily(
 fun AgroSphereTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
-    content: @Composable() () -> Unit
+    content: @Composable () -> Unit
 ) {
-    val colorScheme =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val colorScheme = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && dynamicColor -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else {
-            if (darkTheme) darkScheme else lightScheme
         }
+        darkTheme -> darkScheme
+        else -> lightScheme
+    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
