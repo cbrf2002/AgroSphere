@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">AgroSphere</string>
     <string name="title_activity_main">AgroSphere</string>
-    <string name="login_subtitle">IoT-Based Automated Greenhouse Monitoring System</string>
+    <string name="login_subtitle">IoT-Based Automated Greenhouse\nMonitoring System</string>
     <string name="username_string">Username</string>
     <string name="password_string">Password</string>
     <string name="log_in_string">Log In</string>
@@ -13,4 +13,5 @@
     <string name="title_activity_sign_up">SignUpActivity</string>
     <string name="title_activity_home">Home</string>
     <string name="title_activity_dashboard_screen">DashboardScreen</string>
+    <string name="default_web_client_id">600551436536-tg1ggp41vpqo64ho3embk35t5c3itqhp.apps.googleusercontent.com</string>
 </resources>
