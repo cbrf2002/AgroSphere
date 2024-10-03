@@ -14,14 +14,13 @@ import androidx.navigation.compose.rememberNavController
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import kotlinx.coroutines.launch
-import android.text.format.DateFormat
+import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.tooling.preview.Preview
 import com.fsvdevs.agrosphere.routes.Routes
 import com.google.firebase.Firebase
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.auth
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -31,112 +30,105 @@ import kotlin.let
 @Composable
 fun DashboardScreen(
     navController: NavController,
-    sensorDataViewModel: SensorDataViewModel = viewModel(),
-    actuatorDataViewModel: ActuatorDataViewModel = viewModel()
+    sensorDataViewModel: SensorDataViewModel,
+    actuatorDataViewModel: ActuatorDataViewModel
 ) {
-    val context = LocalContext.current
     val sensorData by sensorDataViewModel.sensorData.collectAsState()
     val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val isLoadingSensor = sensorData == null
     val isLoadingActuator = actuatorData == null
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .systemBarsPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        if (isLoadingSensor) {
+    // Logging data states
+    LaunchedEffect(sensorData, actuatorData) {
+        Log.d("DashboardScreen", "Is loading sensor: $isLoadingSensor, Is loading actuator: $isLoadingActuator")
+        Log.d("DashboardScreen", "SensorData: $sensorData, ActuatorData: $actuatorData")
+    }
+
+    if (isLoadingSensor || isLoadingActuator) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .systemBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             CircularProgressIndicator()
-        } else {
+            Log.d("DashboardScreen", "Showing progress while loading data")
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .systemBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             sensorData?.let { data ->
+                Log.d("DashboardScreen", "Displaying sensor data: $data")
                 Text(text = "Temperature: ${data.temperature}°C")
                 Text(text = "Humidity: ${data.humidity}%")
                 Text(text = "Light Level: ${data.lightLevel} lux")
                 Text(text = "Water Level: ${data.waterLevel} cm")
-                Text(text = "Water Temperature: ${data.waterTemperature}°C")
-                Text(text = "pH Level: ${data.phLevel}")
+                Text(text = "Water Temperature: ${data.waterTemp}°C")
+                Text(text = "pH Level: ${data.pH}")
                 Text(text = "Last Updated: ${formatTimestamp(data.timestamp)}")
             }
-        }
 
-        if (isLoadingActuator) {
-            CircularProgressIndicator()
-        } else {
             actuatorData?.let { data ->
-                // Display actuator controls
-                Text(text = "Fan Status: ${if (data.fanStatus) "ON" else "OFF"}")
-                Text(text = "Fog Status: ${if (data.fogStatus) "ON" else "OFF"}")
-                Text(text = "Vent Status: ${if (data.ventStatus) "ON" else "OFF"}")
+                Log.d("DashboardScreen", "Displaying actuator data: $data")
+                Text(text = "Fan Status: ${if (data.fan) "ON" else "OFF"}")
+                Text(text = "Mist Status: ${if (data.mist) "ON" else "OFF"}")
+                Text(text = "Vent Status: ${if (data.vent) "ON" else "OFF"}")
 
-                var isButtonEnabled by remember { mutableStateOf(true) }
-
-                // Fan button
                 Button(onClick = {
-                    if (isButtonEnabled) {
-                        isButtonEnabled = false
-                        coroutineScope.launch {
-                            actuatorDataViewModel.createNewActuatorDataEntry(data.copy(fanStatus = !data.fanStatus))
-                            Toast.makeText(context, "Fan Status Updated", Toast.LENGTH_SHORT).show()
-                            isButtonEnabled = true
-                        }
+                    coroutineScope.launch {
+                        actuatorDataViewModel.updateActuatorData(data.copy(fan = !data.fan))
                     }
                 }) {
-                    Text(text = if (data.fanStatus) "Turn Fan OFF" else "Turn Fan ON")
-                }
-
-                // Fog button
-                Button(onClick = {
-                    if (isButtonEnabled) {
-                        isButtonEnabled = false
-                        coroutineScope.launch {
-                            actuatorDataViewModel.createNewActuatorDataEntry(data.copy(fogStatus = !data.fogStatus))
-                            Toast.makeText(context, "Fog Status Updated", Toast.LENGTH_SHORT).show()
-                            isButtonEnabled = true
-                        }
-                    }
-                }) {
-                    Text(text = if (data.fogStatus) "Turn Fog OFF" else "Turn Fog ON")
-                }
-
-                // Vent button
-                Button(onClick = {
-                    if (isButtonEnabled) {
-                        isButtonEnabled = false
-                        coroutineScope.launch {
-                            actuatorDataViewModel.createNewActuatorDataEntry(data.copy(ventStatus = !data.ventStatus))
-                            Toast.makeText(context, "Vent Status Updated", Toast.LENGTH_SHORT).show()
-                            isButtonEnabled = true
-                        }
-                    }
-                }) {
-                    Text(text = if (data.ventStatus) "Close Vent" else "Open Vent")
+                    Text(text = if (data.fan) "Turn Fan OFF" else "Turn Fan ON")
                 }
 
                 Button(onClick = {
-                    Firebase.auth.signOut()
-                    navController.navigate(Routes.LOGIN_SCREEN) {
-                        popUpTo(0) { inclusive = true }
+                    coroutineScope.launch {
+                        actuatorDataViewModel.updateActuatorData(data.copy(mist = !data.mist))
                     }
-                    Toast.makeText(context, "Signed out successfully.", Toast.LENGTH_SHORT).show()
                 }) {
-                    Text("Sign Out")
+                    Text(text = if (data.mist) "Turn Mist OFF" else "Turn Mist ON")
                 }
+
+                Button(onClick = {
+                    coroutineScope.launch {
+                        actuatorDataViewModel.updateActuatorData(data.copy(vent = !data.vent))
+                    }
+                }) {
+                    Text(text = if (data.vent) "Close Vent" else "Open Vent")
+                }
+            }
+
+            Button(onClick = {
+                Firebase.auth.signOut()
+                navController.navigate(Routes.LOGIN_SCREEN) {
+                    popUpTo(0) { inclusive = true }
+                }
+                Toast.makeText(context, "Signed out successfully.", Toast.LENGTH_SHORT).show()
+            }) {
+                Text("Sign Out")
             }
         }
     }
 }
 
 @Composable
-fun formatTimestamp(timestamp: Timestamp): String {
-    val date = Date(timestamp.seconds * 1000)
-    val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "yyyyMMddHHmmss")
-    val formattedDate = SimpleDateFormat(pattern, Locale.getDefault()).format(date)
-    return formattedDate
+fun formatTimestamp(timestamp: Long): String {
+    val date = Date(timestamp)
+    val pattern = "yyyy-MM-dd HH:mm:ss"
+    val formatter = SimpleDateFormat(pattern, Locale.getDefault())
+    return formatter.format(date)
 }
 
 @Preview
@@ -144,7 +136,7 @@ fun formatTimestamp(timestamp: Timestamp): String {
 fun DashboardScreenPreview() {
     DashboardScreen(
         navController = rememberNavController(),
-        sensorDataViewModel = SensorDataViewModel(),
-        actuatorDataViewModel = ActuatorDataViewModel()
+        sensorDataViewModel = viewModel(),
+        actuatorDataViewModel = viewModel()
     )
 }
