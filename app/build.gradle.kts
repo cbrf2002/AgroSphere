@@ -85,6 +85,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.vico.compose.m3)
 
 
     implementation("androidx.credentials:credentials:1.5.0-alpha05")
