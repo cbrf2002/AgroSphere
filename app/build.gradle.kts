@@ -100,6 +100,9 @@ dependencies {
     implementation("com.google.firebase:firebase-auth") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
+    implementation("com.google.firebase:firebase-database") {
+        exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
+    }
 
     implementation("com.google.protobuf:protobuf-javalite:3.25.1")
 
