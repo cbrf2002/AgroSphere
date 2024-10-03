@@ -12,7 +12,20 @@
           "package_name": "com.fsvdevs.agrosphere"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "600551436536-kpc5eor583h49hei04tl5henpksm4041.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fsvdevs.agrosphere",
+            "certificate_hash": "daa7ceb58fcdad4d1142c60be601c44c9fd109f8"
+          }
+        },
+        {
+          "client_id": "600551436536-tg1ggp41vpqo64ho3embk35t5c3itqhp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC2U4oWoR_zwYoojjNxPDEjQzYWmeq9Ws0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "600551436536-tg1ggp41vpqo64ho3embk35t5c3itqhp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
