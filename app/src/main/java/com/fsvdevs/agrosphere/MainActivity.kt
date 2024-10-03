@@ -32,6 +32,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.fsvdevs.agrosphere.repository.ActuatorDataRepository
+import com.fsvdevs.agrosphere.repository.SensorDataRepository
 import com.fsvdevs.agrosphere.routes.Routes
 import com.fsvdevs.agrosphere.ui.DashboardScreen
 import com.fsvdevs.agrosphere.ui.LoginScreen
@@ -48,17 +50,20 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.FirebaseFirestore
 
 
 class MainActivity : ComponentActivity() {
 
-    private val sensorDataViewModel: SensorDataViewModel by viewModels()
-    private val actuatorDataViewModel: ActuatorDataViewModel by viewModels()
     private lateinit var auth: FirebaseAuth
     private lateinit var signInClient: SignInClient
     private var isLoggedIn by mutableStateOf(false)
     private val tag = "MainActivity"
     private lateinit var authStateListener: FirebaseAuth.AuthStateListener
+    private lateinit var database: DatabaseReference
+    private lateinit var firestore: FirebaseFirestore
 
     private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -83,6 +88,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Instantiate ViewModels using a factory or dependency injection
+    private lateinit var sensorDataViewModel: SensorDataViewModel
+    private lateinit var actuatorDataViewModel: ActuatorDataViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -91,11 +100,21 @@ class MainActivity : ComponentActivity() {
 
         auth = Firebase.auth
         signInClient = Identity.getSignInClient(this)
+        database = FirebaseDatabase.getInstance("https://agrosphere-fsvdev-default-rtdb.asia-southeast1.firebasedatabase.app/").reference
+        firestore = FirebaseFirestore.getInstance()
+
+        val sensorDataRepository = SensorDataRepository(database)
+        val actuatorDataRepository = ActuatorDataRepository(database)
+
+        // Initialize ViewModels
+        sensorDataViewModel = SensorDataViewModel(sensorDataRepository)
+        actuatorDataViewModel = ActuatorDataViewModel(actuatorDataRepository)
 
         // Listen for changes in authentication state
         authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             isLoggedIn = user != null && user.isEmailVerified
+            Log.d(tag, "Auth state changed: isLoggedIn = $isLoggedIn")
         }
 
         setContent {
@@ -139,7 +158,9 @@ class MainActivity : ComponentActivity() {
                     ) { paddingValues ->
                         NavRoutes(
                             navController = navController,
-                            modifier = Modifier.padding(paddingValues)
+                            modifier = Modifier.padding(paddingValues),
+                            sensorDataViewModel = sensorDataViewModel,
+                            actuatorDataViewModel = actuatorDataViewModel
                         )
                     }
                 }
@@ -199,8 +220,10 @@ class MainActivity : ComponentActivity() {
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     if (auth.currentUser?.isEmailVerified == true) {
+                        Log.d(tag, "signInWithEmail:success")
                         Toast.makeText(baseContext, "Authentication successful.", Toast.LENGTH_SHORT).show()
                     } else {
+                        Log.w(tag, "signInWithEmail:email not verified")
                         Toast.makeText(baseContext, "Please verify your email.", Toast.LENGTH_SHORT).show()
                     }
                 } else {
@@ -214,8 +237,10 @@ class MainActivity : ComponentActivity() {
         auth.sendPasswordResetEmail(email)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    Log.d(tag, "Password reset email sent")
                     Toast.makeText(baseContext, "Password reset email sent.", Toast.LENGTH_SHORT).show()
                 } else {
+                    Log.e(tag, "Failed to send password reset email", task.exception)
                     Toast.makeText(baseContext, "Failed to send password reset email.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -223,13 +248,22 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NavRoutes(navController: NavHostController, modifier: Modifier = Modifier) {
+fun NavRoutes(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    sensorDataViewModel: SensorDataViewModel,
+    actuatorDataViewModel: ActuatorDataViewModel
+) {
     NavHost(
         navController = navController,
         startDestination = Routes.DASHBOARD_SCREEN,
         modifier = modifier
     ) {
-        composable(Routes.DASHBOARD_SCREEN) { DashboardScreen(navController) }
+        composable(Routes.DASHBOARD_SCREEN) { DashboardScreen(
+            navController,
+            sensorDataViewModel,
+            actuatorDataViewModel
+        ) }
         composable(Routes.MONITOR_SCREEN) { MonitorScreen(navController) }
         composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen(navController) }
         composable(Routes.PREFERENCES_SCREEN) { PreferencesScreen(navController) }
@@ -296,16 +330,4 @@ fun BottomNavigationBar(
             }
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    LoginScreen(
-        navController = rememberNavController(),
-        onGoogleSignIn = {},
-        onEmailSignIn = { _, _ -> },
-        onSignUp = { _, _ -> },
-        onForgotPassword = {}
-    )
 }
