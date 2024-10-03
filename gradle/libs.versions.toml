@@ -19,6 +19,7 @@ material3Android = "1.3.0"
 uiTextGoogleFonts = "1.7.2"
 toolsCore = "1.0.0-alpha09"
 runtime-livedata = "1.7.2"
+vico = "2.0.0-beta.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -44,6 +45,8 @@ androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text
 androidx-tools-core = { group = "androidx.privacysandbox.tools", name = "tools-core", version.ref = "toolsCore" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref="composeNavigation" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtime-livedata"}
+vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
