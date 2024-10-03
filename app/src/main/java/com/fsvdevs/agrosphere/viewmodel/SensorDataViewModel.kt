@@ -1,37 +1,37 @@
 package com.fsvdevs.agrosphere.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fsvdevs.agrosphere.models.SensorData
 import com.fsvdevs.agrosphere.repository.SensorDataRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-class SensorDataViewModel : ViewModel() {
-    private val repository = SensorDataRepository()
-    private val _sensorData = MutableStateFlow<SensorData?>(null)
-    val sensorData = _sensorData.asStateFlow()
+class SensorDataViewModel(private val repository: SensorDataRepository) : ViewModel() {
+    private val tag = "SensorDataViewModel"
+
+    val sensorData: StateFlow<SensorData?> = repository.sensorData
 
     init {
-        fetchLatestSensorData()
+        startFetchingSensorData()
     }
 
-    // Fetch the latest sensor data every 5 seconds
-    private fun fetchLatestSensorData() {
+    private fun startFetchingSensorData() {
         viewModelScope.launch {
-            while (true) {
-                try {
-                    val data = repository.getLatestSensorData()
-                    if (data != null && data != _sensorData.value) {
-                        _sensorData.value = data
-                    }
-                } catch (e: Exception) {
-                    // Handle errors
-                }
-                delay(1000)
+            while (isActive) {
+                loadSensorData()
+                delay(5000)
             }
+        }
+    }
+
+    private fun loadSensorData() {
+        viewModelScope.launch {
+            Log.d(tag, "Loading sensor data")
+            repository.fetchSensorData()
         }
     }
 }
