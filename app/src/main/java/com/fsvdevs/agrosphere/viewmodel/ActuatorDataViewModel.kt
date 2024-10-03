@@ -1,32 +1,38 @@
 package com.fsvdevs.agrosphere.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fsvdevs.agrosphere.models.ActuatorData
 import com.fsvdevs.agrosphere.repository.ActuatorDataRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class ActuatorDataViewModel : ViewModel() {
-    private val repository = ActuatorDataRepository()
-    private val _actuatorData = MutableStateFlow<ActuatorData?>(null)
-    val actuatorData = _actuatorData.asStateFlow()
+class ActuatorDataViewModel(private val repository: ActuatorDataRepository) : ViewModel() {
+    private val tag = "ActuatorDataViewModel"
+
+    val actuatorData: StateFlow<ActuatorData?> = repository.actuatorData
 
     init {
-        fetchLatestActuatorData()
+        loadActuatorData()
+        repository.startListening()
     }
 
-    // Fetch the latest actuator data
-    private fun fetchLatestActuatorData() {
+    override fun onCleared() {
+        super.onCleared()
+        repository.stopListening()
+    }
+
+    private fun loadActuatorData() {
         viewModelScope.launch {
-            _actuatorData.value = repository.getLatestActuatorData()
+            Log.d(tag, "Loading actuator data")
+            repository.fetchActuatorData()
         }
     }
 
-    suspend fun createNewActuatorDataEntry(actuatorData: ActuatorData) {
-        repository.createNewActuatorDataEntry(actuatorData)
-        // After creation, fetch the updated data
-        fetchLatestActuatorData()
+    fun updateActuatorData(newData: ActuatorData) {
+        viewModelScope.launch {
+            repository.updateActuatorData(newData)
+        }
     }
 }
