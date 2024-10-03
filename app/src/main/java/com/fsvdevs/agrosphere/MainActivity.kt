@@ -264,7 +264,9 @@ fun NavRoutes(
             sensorDataViewModel,
             actuatorDataViewModel
         ) }
-        composable(Routes.MONITOR_SCREEN) { MonitorScreen(navController) }
+        composable(Routes.MONITOR_SCREEN) { MonitorScreen(
+            sensorDataViewModel
+        ) }
         composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen(navController) }
         composable(Routes.PREFERENCES_SCREEN) { PreferencesScreen(navController) }
         composable(Routes.LOGIN_SCREEN) {
