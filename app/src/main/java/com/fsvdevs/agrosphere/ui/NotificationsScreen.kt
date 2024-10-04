@@ -49,5 +49,5 @@ fun NotificationsScreen(navController: NavController) {
 @Preview
 @Composable
 fun NotificationsScreenPreview() {
-    MonitorScreen(navController = rememberNavController())
+    NotificationsScreen(navController = rememberNavController())
 }
