@@ -64,6 +64,7 @@ android {
             excludes += "google/protobuf/field_mask.proto"
         }
     }
+
     buildToolsVersion = "35.0.0"
 }
 
@@ -86,6 +87,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.vico.compose.m3)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
 
     implementation("androidx.credentials:credentials:1.5.0-alpha05")
