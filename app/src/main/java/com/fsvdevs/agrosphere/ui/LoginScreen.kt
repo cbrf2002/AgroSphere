@@ -1,5 +1,6 @@
 package com.fsvdevs.agrosphere.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
@@ -63,12 +65,16 @@ fun LoginScreen(
     val passwordFocusRequester = remember { FocusRequester() }
 
     Column(
-        modifier = Modifier.fillMaxSize().systemBarsPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Column(
-            modifier = Modifier.wrapContentSize(),
+            modifier = Modifier
+                .wrapContentSize()
+                .animateContentSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
@@ -92,10 +98,15 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize()
+                .imePadding()
+        ) {
             Spacer(Modifier.fillMaxWidth().weight(.2f))
-            Column (
-                modifier = Modifier.fillMaxWidth().weight(.7f),
+            Column(
+                modifier = Modifier.fillMaxWidth().weight(.8f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (!isEmailSignInVisible && !isSignUpVisible) {
@@ -145,6 +156,16 @@ fun LoginScreen(
                         keyboardActions = KeyboardActions(
                             onNext = { passwordFocusRequester.requestFocus() }
                         ),
+                        trailingIcon = {
+                            if (email.isNotBlank()) {
+                                IconButton(onClick = { email = "" }) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.baseline_clear_24),
+                                        contentDescription = "Clear email"
+                                    )
+                                }
+                            }
+                        },
                         singleLine = true
                     )
 
@@ -229,7 +250,7 @@ fun TextLogo() {
         }
         withStyle(style = SpanStyle(
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Black,
             fontSize = MaterialTheme.typography.displaySmall.fontSize)
         ) {
             append("SPHERE")
