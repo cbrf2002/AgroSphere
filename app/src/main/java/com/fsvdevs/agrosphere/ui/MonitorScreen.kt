@@ -31,6 +31,7 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import android.graphics.Color
 import android.widget.TextView
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -59,6 +60,7 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .animateContentSize()
             .padding(16.dp, 16.dp, 16.dp, 0.dp),
         verticalArrangement = Arrangement.Bottom
     ) {
