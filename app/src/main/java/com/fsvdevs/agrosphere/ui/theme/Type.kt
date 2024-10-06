@@ -2,6 +2,7 @@ package com.fsvdevs.agrosphere.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import com.fsvdevs.agrosphere.R
@@ -12,18 +13,24 @@ val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
+// Define Roboto font family with multiple variants
 val bodyFontFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Roboto"),
-        fontProvider = provider,
-    )
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W400), // Regular
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W500), // Medium
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W600), // SemiBold
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W700), // Bold
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W800), // ExtraBold
+    Font(googleFont = GoogleFont("Roboto"), fontProvider = provider, weight = FontWeight.W900)  // Black
 )
 
+// Define Maven Pro font family with multiple variants
 val displayFontFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Maven Pro"),
-        fontProvider = provider,
-    )
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W400), // Regular
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W500), // Medium
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W600), // SemiBold
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W700), // Bold
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W800), // ExtraBold
+    Font(googleFont = GoogleFont("Maven Pro"), fontProvider = provider, weight = FontWeight.W900)  // Black
 )
 
 // Default Material 3 typography values
