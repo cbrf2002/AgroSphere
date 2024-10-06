@@ -13,6 +13,8 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -20,20 +22,24 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.fsvdevs.agrosphere.models.ActuatorData
+import com.fsvdevs.agrosphere.models.SensorData
+import com.fsvdevs.agrosphere.models.SensorRangeData
 import com.fsvdevs.agrosphere.repository.ActuatorDataRepository
 import com.fsvdevs.agrosphere.repository.SensorDataRepository
+import com.fsvdevs.agrosphere.repository.SensorRangeDataRepository
 import com.fsvdevs.agrosphere.routes.Routes
 import com.fsvdevs.agrosphere.ui.DashboardScreen
 import com.fsvdevs.agrosphere.ui.LoginScreen
@@ -43,13 +49,12 @@ import com.fsvdevs.agrosphere.ui.PreferencesScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
+import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
-import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.auth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -89,8 +94,15 @@ class MainActivity : ComponentActivity() {
     }
 
     // Instantiate ViewModels using a factory or dependency injection
-    private lateinit var sensorDataViewModel: SensorDataViewModel
-    private lateinit var actuatorDataViewModel: ActuatorDataViewModel
+    private val sensorDataViewModel: SensorDataViewModel by viewModels {
+        SensorDataViewModel.Factory(SensorDataRepository(database))
+    }
+    private val actuatorDataViewModel: ActuatorDataViewModel by viewModels {
+        ActuatorDataViewModel.Factory(ActuatorDataRepository(database))
+    }
+    private val sensorRangeDataViewModel: SensorRangeDataViewModel by viewModels {
+        SensorRangeDataViewModel.Factory(SensorRangeDataRepository(database))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,17 +110,10 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
 
-        auth = Firebase.auth
+        auth = FirebaseAuth.getInstance()
         signInClient = Identity.getSignInClient(this)
         database = FirebaseDatabase.getInstance("https://agrosphere-fsvdev-default-rtdb.asia-southeast1.firebasedatabase.app/").reference
         firestore = FirebaseFirestore.getInstance()
-
-        val sensorDataRepository = SensorDataRepository(database)
-        val actuatorDataRepository = ActuatorDataRepository(database)
-
-        // Initialize ViewModels
-        sensorDataViewModel = SensorDataViewModel(sensorDataRepository)
-        actuatorDataViewModel = ActuatorDataViewModel(actuatorDataRepository)
 
         // Listen for changes in authentication state
         authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -126,18 +131,18 @@ class MainActivity : ComponentActivity() {
             AgroSphereTheme(isDarkTheme) {
                 if (!isLoggedIn) {
                     LoginScreen(
-                        navController = navController,
                         onGoogleSignIn = { signInWithGoogle() },
-                        onEmailSignIn = { email, password ->
-                            signInWithEmail(email, password)
-                        },
+                        onEmailSignIn = { email, password -> signInWithEmail(email, password) },
                         onSignUp = { email, password -> createAccount(email, password) },
                         onForgotPassword = { email -> resetPassword(email) }
                     )
                 } else {
+                    val sensorData by sensorDataViewModel.sensorData.collectAsState()
+                    val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
+                    val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
+
                     Scaffold(
-                        modifier = Modifier
-                            .fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(),
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         bottomBar = {
                             BottomNavigationBar(
@@ -157,10 +162,16 @@ class MainActivity : ComponentActivity() {
                         }
                     ) { paddingValues ->
                         NavRoutes(
+                            sensorData = sensorData,
+                            actuatorData = actuatorData,
+                            sensorRangeData = sensorRangeData,
                             navController = navController,
-                            modifier = Modifier.padding(paddingValues),
+                            modifier = Modifier
+                                .padding(paddingValues)
+                                .verticalScroll(rememberScrollState()),
                             sensorDataViewModel = sensorDataViewModel,
-                            actuatorDataViewModel = actuatorDataViewModel
+                            actuatorDataViewModel = actuatorDataViewModel,
+                            sensorRangeDataViewModel = sensorRangeDataViewModel
                         )
                     }
                 }
@@ -249,10 +260,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NavRoutes(
+    sensorData: SensorData?,
+    actuatorData: ActuatorData?,
+    sensorRangeData: SensorRangeData?,
     navController: NavHostController,
     modifier: Modifier = Modifier,
     sensorDataViewModel: SensorDataViewModel,
-    actuatorDataViewModel: ActuatorDataViewModel
+    actuatorDataViewModel: ActuatorDataViewModel,
+    sensorRangeDataViewModel: SensorRangeDataViewModel
 ) {
     NavHost(
         navController = navController,
@@ -260,9 +275,13 @@ fun NavRoutes(
         modifier = modifier
     ) {
         composable(Routes.DASHBOARD_SCREEN) { DashboardScreen(
-            navController,
-            sensorDataViewModel,
-            actuatorDataViewModel
+            sensorData = sensorData,
+            actuatorData = actuatorData,
+            sensorRangeData = sensorRangeData,
+            sensorDataViewModel = sensorDataViewModel,
+            actuatorDataViewModel = actuatorDataViewModel,
+            sensorRangeDataViewModel = sensorRangeDataViewModel,
+            navController = navController
         ) }
         composable(Routes.MONITOR_SCREEN) { MonitorScreen(
             sensorDataViewModel
@@ -271,7 +290,6 @@ fun NavRoutes(
         composable(Routes.PREFERENCES_SCREEN) { PreferencesScreen(navController) }
         composable(Routes.LOGIN_SCREEN) {
             LoginScreen(
-                navController,
                 onGoogleSignIn = {},
                 onEmailSignIn = { _, _ -> },
                 onSignUp = { _, _ -> },
