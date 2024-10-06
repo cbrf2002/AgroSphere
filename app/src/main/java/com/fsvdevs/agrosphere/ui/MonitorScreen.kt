@@ -59,7 +59,6 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .animateContentSize()
             .padding(16.dp, 16.dp, 16.dp, 0.dp),
         verticalArrangement = Arrangement.Bottom
     ) {
@@ -99,7 +98,12 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+            Column(
+                modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp)
+                .animateContentSize()
+            ) {
                 if (sensorHistory.value.isNotEmpty()) {
                     isThereData.value = true
                     val sensorProperties = listOf(
