@@ -2,6 +2,7 @@ package com.fsvdevs.agrosphere.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fsvdevs.agrosphere.models.ActuatorData
 import com.fsvdevs.agrosphere.repository.ActuatorDataRepository
@@ -33,6 +34,16 @@ class ActuatorDataViewModel(private val repository: ActuatorDataRepository) : Vi
     fun updateActuatorData(newData: ActuatorData) {
         viewModelScope.launch {
             repository.updateActuatorData(newData)
+        }
+    }
+
+    class Factory(private val repository: ActuatorDataRepository) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(ActuatorDataViewModel::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return ActuatorDataViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }
