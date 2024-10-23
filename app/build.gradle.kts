@@ -87,16 +87,11 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.vico.compose.m3)
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation(libs.mpandroidchart)
 
+    implementation(libs.play.services.auth)
 
-    implementation("androidx.credentials:credentials:1.5.0-alpha05")
-    implementation("androidx.credentials:credentials-play-services-auth:1.5.0-alpha05")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
-
-    implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
+    implementation(platform(libs.firebase.bom))
     implementation("com.google.firebase:firebase-firestore") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
@@ -110,7 +105,7 @@ dependencies {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
 
-    implementation("com.google.protobuf:protobuf-javalite:3.25.1")
+    implementation(libs.protobuf.javalite)
 
     implementation(libs.androidx.tools.core) {
         exclude(group = "com.google.protobuf", module = "protobuf-java")
