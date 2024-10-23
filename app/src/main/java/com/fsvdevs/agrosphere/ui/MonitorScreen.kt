@@ -40,6 +40,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -51,10 +52,15 @@ import com.github.mikephil.charting.utils.MPPointF
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
-    val sensorHistory = sensorDataViewModel.sensorHistory.collectAsState() // Observing sensor history
+    val sensorHistory = sensorDataViewModel.sensorHistory.collectAsState()
     var selectedTabIndex = remember { mutableIntStateOf(0) }
     val timeRanges = listOf("Hour", "Day", "Week", "Month", "Year")
-    var isThereData = remember{ mutableStateOf(false) }
+    var isThereData = remember { mutableStateOf(false) }
+
+    // Fetch sensor data when the tab index changes
+    LaunchedEffect(selectedTabIndex.intValue) {
+        sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+    }
 
     Column(
         modifier = Modifier
@@ -64,34 +70,32 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Card(
-            shape = if(isThereData.value) RoundedCornerShape(24.dp, 24.dp, 0.dp, 0.dp) else RoundedCornerShape(24.dp),
+            shape = if (isThereData.value) RoundedCornerShape(24.dp, 24.dp, 0.dp, 0.dp) else RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
             ),
-            modifier = Modifier
-                .fillMaxHeight()
+            modifier = Modifier.fillMaxHeight()
         ) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Sensor Data Monitoring",
                 style = MaterialTheme.typography.titleLarge.copy(),
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             PrimaryTabRow(
-                selectedTabIndex.intValue,
+                selectedTabIndex = selectedTabIndex.intValue,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
             ) {
                 timeRanges.forEachIndexed { index, range ->
                     Tab(
                         selected = selectedTabIndex.intValue == index,
-                        onClick = {
-                            selectedTabIndex.intValue = index
-                            sensorDataViewModel.fetchSensorHistoryByRange(range)
-                        },
+                        onClick = { selectedTabIndex.intValue = index },
                         text = { Text(range) }
                     )
                 }
@@ -100,22 +104,23 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
 
             Column(
                 modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp)
-                .animateContentSize()
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .animateContentSize()
             ) {
                 if (sensorHistory.value.isNotEmpty()) {
                     isThereData.value = true
                     val sensorProperties = listOf(
                         Pair("Temperature") { sensorData: SensorData -> sensorData.temperature },
                         Pair("Humidity") { sensorData: SensorData -> sensorData.humidity },
-                        Pair("pH Level") { sensorData: SensorData -> sensorData.pH },
-                        Pair("Light Level") { sensorData: SensorData -> sensorData.lightLevel },
+                        Pair("CO2 Level") { sensorData: SensorData -> sensorData.carbonDioxide },
+                        Pair("Water Level") { sensorData: SensorData -> sensorData.waterLevel },
                         Pair("Water Temperature") { sensorData: SensorData -> sensorData.waterTemp },
-                        Pair("Water Level") { sensorData: SensorData -> sensorData.waterLevel }
+                        Pair("Light Level") { sensorData: SensorData -> sensorData.lightLevel },
+                        Pair("pH Level") { sensorData: SensorData -> sensorData.pH },
+                        Pair("TDS Level") { sensorData: SensorData -> sensorData.tds }
                     )
 
-                    // Render charts for each sensor type
                     sensorProperties.forEach { (title, valueMapper) ->
                         SensorChart(
                             title = title,
@@ -150,86 +155,97 @@ fun SensorChart(
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
 
+    val firstTimestamp = sensorDataList.firstOrNull()?.timestamp ?: 0L
     val entries = sensorDataList.map { data ->
-        Entry(data.timestamp.toFloat(), valueMapper(data).toFloat())
+        Entry((data.timestamp - firstTimestamp).toFloat() / 1000, valueMapper(data).toFloat())
     }
 
     val lineDataSet = LineDataSet(entries, title).apply {
         color = MaterialTheme.colorScheme.primary.toArgb()
         lineWidth = 2f
-        circleRadius = 4f
-        setCircleColor(MaterialTheme.colorScheme.primary.toArgb())
-        valueTextColor = Color.TRANSPARENT  // Hide labels
+        setDrawCircles(false)
+        valueTextColor = Color.TRANSPARENT
         valueTextSize = 10f
-        mode = LineDataSet.Mode.CUBIC_BEZIER
+        mode = LineDataSet.Mode.HORIZONTAL_BEZIER
         isHighlightEnabled = true
         setDrawHighlightIndicators(true)
     }
 
     val lineData = LineData(lineDataSet)
-
     val context = LocalContext.current
-    val lineChart = remember { LineChart(context) }
+    val textColorOnSurface = MaterialTheme.colorScheme.onSurface.toArgb()
+    val textColorOutline = MaterialTheme.colorScheme.outline.toArgb()
 
-    // Custom marker view to show label when user taps a point
-    val marker = CustomMarkerView(context)
-    lineChart.marker = marker
-
-    // Configure chart attributes
-    lineChart.apply {
-        data = lineData
-        xAxis.apply {
-            position = XAxis.XAxisPosition.BOTTOM
-            valueFormatter = object : ValueFormatter() {
-                override fun getAxisLabel(value: Float, axis: AxisBase?): String {
-                    return formatTimestamp(value, timeRange)
+    // Re-create the chart when timeRange changes or sensorDataList changes
+    val lineChart = remember(sensorDataList, timeRange) {
+        LineChart(context).apply {
+            data = lineData
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                valueFormatter = object : ValueFormatter() {
+                    override fun getAxisLabel(value: Float, axis: AxisBase?): String {
+                        return formatTimestamp(value, timeRange, firstTimestamp)
+                    }
                 }
-            }
-            granularity = when (timeRange) {
-                "Hour" -> 600f   // 10 minutes
-                "Day" -> 3600f   // 1 hour
-                "Week" -> 86400f // 1 day
-                "Month" -> 86400f // 1 day
-                "Year" -> 2592000f // 1 month
-                else -> 600f
-            }
-            setLabelCount(5, true)  // Set number of labels
-            xAxis.setAvoidFirstLastClipping(true)
-        }
-        axisLeft.apply {
-            // Customize Y-axis if needed
-        }
-        axisRight.isEnabled = false
-        legend.isEnabled = false
-        description.isEnabled = false
-        setTouchEnabled(true)
-        setDragEnabled(true)
-        setScaleEnabled(true)
-        setPinchZoom(true)
+                granularity = when (timeRange) { // Set granularity based on time range
+                    "Hour" -> 600f
+                    "Day" -> 3600f
+                    "Week" -> 86400f
+                    "Month" -> 86400f
+                    "Year" -> 2592000f
+                    else -> 600f
+                }
+                setLabelCount(5, true)
+                setAvoidFirstLastClipping(true)
 
-        // Update chart when data changes
-        notifyDataSetChanged()
-        invalidate()
+                textColor = textColorOnSurface
+                axisLineColor = textColorOnSurface
+                gridColor = textColorOutline
+            }
+            axisLeft.apply {
+                textColor = textColorOnSurface
+                axisLineColor = textColorOnSurface
+                gridColor = textColorOutline
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+            description.isEnabled = false
+            setTouchEnabled(true)
+            setDragEnabled(true)
+            setScaleEnabled(true)
+            setPinchZoom(true)
+
+            val markerView = CustomMarkerView(context) // Create a custom marker view
+            marker = markerView
+        }
     }
 
-    // Display the chart in a Box
     Box(modifier = Modifier.height(200.dp)) {
         AndroidView(
             factory = { lineChart },
             modifier = Modifier.fillMaxSize(),
-            update = { it.invalidate() }  // Refresh chart
+            update = { chart ->
+                // Update the chart with new data and invalidate it
+                chart.data = lineData
+                chart.xAxis.valueFormatter = object : ValueFormatter() {
+                    override fun getAxisLabel(value: Float, axis: AxisBase?): String {
+                        return formatTimestamp(value, timeRange, firstTimestamp)
+                    }
+                }
+                chart.notifyDataSetChanged() // Update the chart
+                chart.invalidate() // Redraw the chart
+            }
         )
     }
 }
 
 // Format timestamp for the X-axis
-private fun formatTimestamp(timestamp: Float, timeRange: String): String {
-    val sdf = when (timeRange) {
+private fun formatTimestamp(timestamp: Float, timeRange: String, firstTimestamp: Long): String {
+    val sdf = when (timeRange) { // Create a SimpleDateFormat based on the time range
         "Hour" -> SimpleDateFormat("HH:mm", Locale.getDefault())
         "Day" -> SimpleDateFormat("MMM dd HH:mm", Locale.getDefault())
         "Week" -> SimpleDateFormat("MMM dd", Locale.getDefault())
@@ -237,7 +253,7 @@ private fun formatTimestamp(timestamp: Float, timeRange: String): String {
         "Year" -> SimpleDateFormat("MMM yyyy", Locale.getDefault())
         else -> SimpleDateFormat("MMM dd", Locale.getDefault())
     }
-    return sdf.format(Date(timestamp.toLong()))
+    return sdf.format(Date((firstTimestamp + timestamp.toLong() * 1000))) // Convert to milliseconds
 }
 
 // Custom marker view for point interactions
@@ -246,7 +262,7 @@ class CustomMarkerView(context: Context) : com.github.mikephil.charting.componen
     private val tvContent: TextView = findViewById(R.id.tvContent)
 
     override fun refreshContent(e: Entry?, highlight: com.github.mikephil.charting.highlight.Highlight?) {
-        tvContent.text = "${e?.y?.toString()}"  // Set the value to display
+        tvContent.text = String.format(Locale.getDefault(), "%.2f", e?.y ?: 0f)  // Set the value to display
         super.refreshContent(e, highlight)
     }
 
