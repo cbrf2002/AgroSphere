@@ -20,7 +20,14 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
--if class androidx.credentials.CredentialManager
--keep class androidx.credentials.playservices.** {
-  *;
-}
+# Firebase Auth
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# Google Sign-In
+-keep class com.google.android.gms.auth.api.signin.** { *; }
+-dontwarn com.google.android.gms.**
+
+# Play Services
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
