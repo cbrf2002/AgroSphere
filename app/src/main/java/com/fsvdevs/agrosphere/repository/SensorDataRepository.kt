@@ -10,14 +10,18 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class SensorDataRepository(private val database: DatabaseReference) {
-    private val tag = "SensorDataRepository"
+    private val tagSensorDataRepository = "SensorDataRepository"
     private val firestore = FirebaseFirestore.getInstance()
     private val sensorHistoryCollection = firestore.collection("sensorHistory")
 
@@ -43,13 +47,22 @@ class SensorDataRepository(private val database: DatabaseReference) {
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
                             CoroutineScope(Dispatchers.IO).launch {
-                                saveSensorDataToFirestore(it)
+                                while(isActive) {
+                                    try {
+                                        withTimeout(5000) {
+                                            saveSensorDataToFirestore(it)
+                                        }
+                                    } catch (e: TimeoutCancellationException) {
+                                        Log.e(tagSensorDataRepository, "Task timed out after 5 seconds.", e)
+                                    }
+                                    delay(600_000)
+                                }
                             }
                         }
                     }
                 }
             } else {
-                Log.w(tag, "No sensor data found")
+                Log.w(tagSensorDataRepository, "No sensor data found")
             }
         }
 
@@ -64,7 +77,7 @@ class SensorDataRepository(private val database: DatabaseReference) {
         }
 
         override fun onCancelled(error: DatabaseError) {
-            Log.e(tag, "Failed to fetch sensor data", error.toException())
+            Log.e(tagSensorDataRepository, "Failed to fetch sensor data", error.toException())
         }
     }
 
@@ -77,7 +90,7 @@ class SensorDataRepository(private val database: DatabaseReference) {
         remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 firestoreSaveInterval = remoteConfig.getLong("firestore_save_interval")
-                Log.d(tag, "Remote Config fetched: Firestore Save Interval = $firestoreSaveInterval ms")
+                Log.d(tagSensorDataRepository, "Remote Config fetched: Firestore Save Interval = $firestoreSaveInterval ms")
             }
         }
     }
@@ -108,15 +121,15 @@ class SensorDataRepository(private val database: DatabaseReference) {
                     }.await()
 
                     lastFirestoreSaveTime = currentTime // Update the last save time
-                    Log.d(tag, "Saved sensor data to Firestore: $sensorData")
+                    Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorData")
                 } else {
-                    Log.d(tag, "Duplicate sensor data, skipping Firestore save.")
+                    Log.d(tagSensorDataRepository, "Duplicate sensor data, skipping Firestore save.")
                 }
             } catch (e: Exception) {
-                Log.e(tag, "Failed to save sensor data to Firestore", e)
+                Log.e(tagSensorDataRepository, "Failed to save sensor data to Firestore", e)
             }
         } else {
-            Log.d(tag, "Skipping Firestore save, interval not reached")
+            Log.d(tagSensorDataRepository, "Skipping Firestore save, interval not reached")
         }
     }
 
@@ -156,7 +169,7 @@ class SensorDataRepository(private val database: DatabaseReference) {
 
                 results
             } catch (e: Exception) {
-                Log.e(tag, "Error fetching sensor data for time range", e)
+                Log.e(tagSensorDataRepository, "Error fetching sensor data for time range", e)
                 emptyList()
             }
         }
