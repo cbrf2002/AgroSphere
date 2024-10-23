@@ -1,24 +1,28 @@
 [versions]
-activityCompose = "1.9.2"
-agp = "8.6.1"
+activityCompose = "1.9.3"
+agp = "8.7.1"
 compiler = "1.5.15"
+firebaseBom = "33.5.0"
 kotlin = "1.9.25"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.0"
-activity = "1.9.2"
+activity = "1.9.3"
 constraintlayout = "2.1.4"
-ui = "1.7.2"
-uiToolingPreview = "1.7.2"
+mpandroidchart = "v3.1.0"
+playServicesAuth = "21.2.0"
+protobufJavalite = "3.25.1"
+ui = "1.7.4"
+uiToolingPreview = "1.7.4"
 lifecycleRuntimeKtx = "2.8.6"
-composeBom = "2024.09.02"
-composeNavigation = "2.8.1"
+composeBom = "2024.10.00"
+composeNavigation = "2.8.3"
 material3Android = "1.3.0"
-uiTextGoogleFonts = "1.7.2"
-toolsCore = "1.0.0-alpha09"
-runtime-livedata = "1.7.2"
+uiTextGoogleFonts = "1.7.4"
+toolsCore = "1.0.0-alpha10"
+runtime-livedata = "1.7.4"
 vico = "1.15.0"
 
 [libraries]
@@ -26,6 +30,7 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 androidx-compiler = { module = "androidx.compose.compiler:compiler", version.ref = "compiler" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-ui = { module = "androidx.compose.ui:ui", version.ref = "ui" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -43,8 +48,11 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
 androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "uiTextGoogleFonts" }
 androidx-tools-core = { group = "androidx.privacysandbox.tools", name = "tools-core", version.ref = "toolsCore" }
+mpandroidchart = { module = "com.github.PhilJay:MPAndroidChart", version.ref = "mpandroidchart" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref="composeNavigation" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtime-livedata"}
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavalite" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 
 
