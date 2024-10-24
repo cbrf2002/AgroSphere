@@ -1,6 +1,7 @@
 [versions]
 activityCompose = "1.9.3"
 agp = "8.7.1"
+datastorePreferences = "1.1.1"
 firebaseBom = "33.5.1"
 hiltWork = "1.2.0"
 kotlin = "2.1.0-Beta2"
@@ -30,6 +31,7 @@ workRuntimeKtx = "2.9.1"
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltWork" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
