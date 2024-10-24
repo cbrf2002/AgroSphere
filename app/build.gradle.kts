@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.material3.android)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.vico.compose.m3)
