@@ -1,9 +1,9 @@
 [versions]
 activityCompose = "1.9.3"
 agp = "8.7.1"
-compiler = "1.5.15"
-firebaseBom = "33.5.0"
-kotlin = "1.9.25"
+firebaseBom = "33.5.1"
+hiltWork = "1.2.0"
+kotlin = "2.1.0-Beta2"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -14,6 +14,7 @@ constraintlayout = "2.1.4"
 mpandroidchart = "v3.1.0"
 playServicesAuth = "21.2.0"
 protobufJavalite = "3.25.1"
+roomRuntime = "2.6.1"
 ui = "1.7.4"
 uiToolingPreview = "1.7.4"
 lifecycleRuntimeKtx = "2.8.6"
@@ -24,12 +25,17 @@ uiTextGoogleFonts = "1.7.4"
 toolsCore = "1.0.0-alpha10"
 runtime-livedata = "1.7.4"
 vico = "1.15.0"
+workRuntimeKtx = "2.9.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
-androidx-compiler = { module = "androidx.compose.compiler:compiler", version.ref = "compiler" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltWork" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 androidx-ui = { module = "androidx.compose.ui:ui", version.ref = "ui" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -58,5 +64,6 @@ vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", ve
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization-json = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref="kotlin"}
