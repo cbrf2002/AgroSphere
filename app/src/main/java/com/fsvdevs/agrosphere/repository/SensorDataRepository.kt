@@ -28,41 +28,34 @@ class SensorDataRepository(private val database: DatabaseReference) {
     private val remoteConfig = FirebaseRemoteConfig.getInstance()
     private var firestoreSaveInterval: Long = 600000L // Default to 10 minutes
     private var lastFirestoreSaveTime: Long = 0
-    private var latestSensorData: SensorData? = null // Store the latest sensor data
+    private var lastUploadedTimestamp: Long = 0 // Store the last uploaded timestamp
+    private var lastUploadedSensorData: SensorData? = null // Store the last uploaded sensor data
+    private var lastDataChangeTime: Long = 0
 
     private val _sensorData = MutableStateFlow<SensorData?>(null)
     val sensorData: StateFlow<SensorData?> = _sensorData
 
     private val sensorDataListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
-            if (snapshot.exists()) {
-                val data = snapshot.getValue(SensorData::class.java)
+            val currentTime = System.currentTimeMillis()
 
-                // Only update if the data is complete (i.e., all sensor values are present)
-                data?.let {
-                    if (isCompleteSensorData(it)) {
-                        _sensorData.value = it
-                        latestSensorData = it
+            // Check if enough time has passed since the last data change processing
+            if (currentTime - lastDataChangeTime >= 10000) { // 10 seconds cooldown
+                if (snapshot.exists()) {
+                    val data = snapshot.getValue(SensorData::class.java)
+                    data?.let {
+                        if (isCompleteSensorData(it)) {
+                            _sensorData.value = it
 
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                while(isActive) {
-                                    try {
-                                        withTimeout(5000) {
-                                            saveSensorDataToFirestore(it)
-                                        }
-                                    } catch (e: TimeoutCancellationException) {
-                                        Log.e(tagSensorDataRepository, "Task timed out after 5 seconds.", e)
-                                    }
-                                    delay(600_000)
+                            if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    saveSensorDataToFirestore(it)
                                 }
                             }
                         }
                     }
                 }
-            } else {
-                Log.w(tagSensorDataRepository, "No sensor data found")
+                lastDataChangeTime = currentTime // Update the last data change time
             }
         }
 
@@ -101,35 +94,50 @@ class SensorDataRepository(private val database: DatabaseReference) {
 
     // Save only the latest sensor data to Firestore every SaveInterval, but check if timestamp changed
     private suspend fun saveSensorDataToFirestore(sensorData: SensorData) {
+        // Add a short delay to allow other operations to complete
+        delay(10000) // Delay for 10 seconds
+
         val currentTime = System.currentTimeMillis()
 
-        // Avoid uploading if the same timestamp exists in Firestore
-        if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
-            try {
-                // Check for duplicates based on timestamp
-                val existingDoc = sensorHistoryCollection
-                    .whereEqualTo("timestamp", sensorData.timestamp)
-                    .limit(1)
-                    .get()
-                    .await()
+        // Check if the current sensor data's timestamp is not within 10 minutes of the last uploaded timestamp
+        if (sensorData.timestamp - lastUploadedTimestamp >= 600_000) {
+            // Check if the new sensor data is different from the last uploaded sensor data
+            if (lastUploadedSensorData == null || lastUploadedSensorData != sensorData) {
+                try {
+                    // Avoid uploading if the same timestamp exists in Firestore
+                    if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
+                        // Check for duplicates based on timestamp
+                        val existingDoc = sensorHistoryCollection
+                            .whereEqualTo("timestamp", sensorData.timestamp)
+                            .limit(1)
+                            .get()
+                            .await()
 
-                if (existingDoc.isEmpty) {
-                    // Save new sensor data
-                    val docRef = sensorHistoryCollection.document()
-                    firestore.runTransaction { transaction ->
-                        transaction.set(docRef, sensorData)
-                    }.await()
+                        if (existingDoc.isEmpty) {
+                            // Save new sensor data
+                            val docRef = sensorHistoryCollection.document()
+                            firestore.runTransaction { transaction ->
+                                transaction.set(docRef, sensorData)
+                            }.await()
 
-                    lastFirestoreSaveTime = currentTime // Update the last save time
-                    Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorData")
-                } else {
-                    Log.d(tagSensorDataRepository, "Duplicate sensor data, skipping Firestore save.")
+                            lastFirestoreSaveTime = currentTime // Update the last save time
+                            lastUploadedTimestamp = sensorData.timestamp // Update the last uploaded timestamp
+                            lastUploadedSensorData = sensorData // Store the last uploaded sensor data
+                            Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorData")
+                        } else {
+                            Log.d(tagSensorDataRepository, "Duplicate sensor data, skipping Firestore save.")
+                        }
+                    } else {
+                        Log.d(tagSensorDataRepository, "Skipping Firestore save, interval not reached")
+                    }
+                } catch (e: Exception) {
+                    Log.e(tagSensorDataRepository, "Failed to save sensor data to Firestore", e)
                 }
-            } catch (e: Exception) {
-                Log.e(tagSensorDataRepository, "Failed to save sensor data to Firestore", e)
+            } else {
+                Log.d(tagSensorDataRepository, "Skipping Firestore save, data is duplicate.")
             }
         } else {
-            Log.d(tagSensorDataRepository, "Skipping Firestore save, interval not reached")
+            Log.d(tagSensorDataRepository, "Skipping Firestore save, timestamp is within 10 minutes")
         }
     }
 
