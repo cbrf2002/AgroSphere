@@ -2,17 +2,19 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.kotlin.serialization.json)
+    alias(libs.plugins.compose.compiler)
     id("com.google.gms.google-services")
+    id("com.google.devtools.ksp") version "2.1.0-Beta2-1.0.25"
 }
 
 android {
     signingConfigs {
         create("release") {
             storeFile =
-                file("C:\\Users\\cbrf.2002\\Documents\\Capstone\\AgroSphere_app\\agrosphere_key.jks")
-            storePassword = "AgroSphereDev1030"
-            keyAlias = "agrosphere_key"
-            keyPassword = "AgroSphereDev1030"
+                file(System.getenv("KEYSTORE_PATH"))
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
     namespace = "com.fsvdevs.agrosphere"
@@ -24,12 +26,13 @@ android {
         //noinspection EditedTargetSdkVersion
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.85"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
+        signingConfig = signingConfigs.getByName("release")
     }
 
     buildTypes {
@@ -44,6 +47,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -80,7 +84,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.compiler)
     implementation(libs.androidx.material3.android)
     implementation(libs.androidx.ui.text.google.fonts)
     implementation(libs.androidx.activity)
@@ -88,6 +91,12 @@ dependencies {
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.vico.compose.m3)
     implementation(libs.mpandroidchart)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+
 
     implementation(libs.play.services.auth)
 
@@ -102,6 +111,9 @@ dependencies {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
     implementation("com.google.firebase:firebase-config") {
+        exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
+    }
+    implementation("com.google.firebase:firebase-analytics-ktx") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
 
@@ -119,6 +131,11 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    stabilityConfigurationFiles.set(listOf(rootProject.layout.projectDirectory.file("stability_config.conf")))
 }
 
 configurations.all {
