@@ -2,7 +2,9 @@ package com.fsvdevs.agrosphere.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -258,14 +260,24 @@ val unspecified_scheme = ColorFamily(
     Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
 )
 
+enum class AppTheme {
+    LIGHT, DARK, AUTO
+}
+
 @Composable
 fun AgroSphereTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    appTheme: AppTheme = AppTheme.AUTO,
+    dynamicColorEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (appTheme) {
+        AppTheme.LIGHT -> false
+        AppTheme.DARK -> true
+        AppTheme.AUTO -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && dynamicColor -> {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && dynamicColorEnabled -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
