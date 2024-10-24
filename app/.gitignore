@@ -1,1 +1,32 @@
-/build
+# Gradle files
+.gradle/
+build/
+*/build/
+
+# Android Studio specific files
+.idea/
+*.iml
+
+# Local configuration files
+local.properties
+
+# Google services configuration file
+google-services.json
+
+# Firebase configuration files
+*.json
+
+# Other sensitive files (if any)
+*.key
+*.properties
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Kotlin files
+*.kt
+*.kts
+
+# Logs
+*.log
