@@ -29,12 +29,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -51,9 +53,11 @@ import com.fsvdevs.agrosphere.ui.DashboardScreen
 import com.fsvdevs.agrosphere.ui.LoginScreen
 import com.fsvdevs.agrosphere.ui.MonitorScreen
 import com.fsvdevs.agrosphere.ui.NotificationsScreen
-import com.fsvdevs.agrosphere.ui.PreferencesScreen
+import com.fsvdevs.agrosphere.ui.PreferenceScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
+import com.fsvdevs.agrosphere.ui.theme.AppTheme
 import com.fsvdevs.agrosphere.utils.NotificationHelper
+import com.fsvdevs.agrosphere.utils.PreferencesManager
 import com.fsvdevs.agrosphere.utils.checkSensorValuesAndNotify
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
@@ -63,7 +67,6 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.database.BuildConfig
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -82,6 +85,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var authStateListener: FirebaseAuth.AuthStateListener
     private lateinit var database: DatabaseReference
     private lateinit var firestore: FirebaseFirestore
+    private lateinit var preferencesManager: PreferencesManager
 
     private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -140,6 +144,7 @@ class MainActivity : ComponentActivity() {
         signInClient = Identity.getSignInClient(this)
         database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
         firestore = FirebaseFirestore.getInstance()
+        preferencesManager = PreferencesManager(this)
 
         checkAndRequestNotificationPermission()
         NotificationHelper.createNotificationChannel(this)
@@ -152,7 +157,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val isDarkTheme = isSystemInDarkTheme()
+            var selectedTheme by remember { mutableStateOf(AppTheme.AUTO) }
+            val dynamicColorEnabled by preferencesManager.dynamicColorFlow.collectAsState(initial = false)
 
             val navController = rememberNavController()
             val navigateTo = intent.getStringExtra("navigate_to")
@@ -164,6 +170,12 @@ class MainActivity : ComponentActivity() {
             val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
             val context = LocalContext.current
 
+            LaunchedEffect(Unit) {
+                preferencesManager.themeFlow.collect { theme ->
+                    selectedTheme = theme
+                }
+            }
+
             LaunchedEffect(sensorData, sensorRangeData) {
                 if (sensorData != null && sensorRangeData != null) {
                     lastCheckJob?.cancel() // Cancel the previous job if it exists
@@ -174,7 +186,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AgroSphereTheme(isDarkTheme) {
+            AgroSphereTheme(
+                appTheme = selectedTheme,
+                dynamicColorEnabled = dynamicColorEnabled
+            ) {
                 if (!isLoggedIn) {
                     LoginScreen(
                         onGoogleSignIn = { signInWithGoogle() },
@@ -218,11 +233,34 @@ class MainActivity : ComponentActivity() {
                             sensorDataViewModel = sensorDataViewModel,
                             actuatorDataViewModel = actuatorDataViewModel,
                             sensorRangeDataViewModel = sensorRangeDataViewModel,
-                            navigateTo = navigateTo
+                            navigateTo = navigateTo,
+                            selectedTheme = selectedTheme,
+                            dynamicColorEnabled = dynamicColorEnabled,
+                            onThemeChange = { newTheme ->
+                                saveThemePreference(newTheme)
+                                selectedTheme = newTheme
+                            },
+                            onDynamicColorChange = { isEnabled ->
+                                saveDynamicColorPreference(isEnabled)
+                            },
+                            saveThemePreference = ::saveThemePreference,
+                            saveDynamicColorPreference = ::saveDynamicColorPreference
                         )
                     }
                 }
             }
+        }
+    }
+
+    private fun saveThemePreference(theme: AppTheme) {
+        lifecycleScope.launch {
+            preferencesManager.saveThemePreference(theme)
+        }
+    }
+
+    private fun saveDynamicColorPreference(isEnabled: Boolean) {
+        lifecycleScope.launch {
+            preferencesManager.saveDynamicColorPreference(isEnabled)
         }
     }
 
@@ -332,7 +370,13 @@ fun NavRoutes(
     sensorDataViewModel: SensorDataViewModel,
     actuatorDataViewModel: ActuatorDataViewModel,
     sensorRangeDataViewModel: SensorRangeDataViewModel,
-    navigateTo: String?
+    navigateTo: String?,
+    selectedTheme: AppTheme,
+    dynamicColorEnabled: Boolean,
+    onThemeChange: (AppTheme) -> Unit,
+    onDynamicColorChange: (Boolean) -> Unit,
+    saveThemePreference: (AppTheme) -> Unit,
+    saveDynamicColorPreference: (Boolean) -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -352,7 +396,15 @@ fun NavRoutes(
             sensorDataViewModel
         ) }
         composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen() }
-        composable(Routes.PREFERENCES_SCREEN) { PreferencesScreen(navController) }
+        composable(Routes.PREFERENCES_SCREEN) { PreferenceScreen(
+            navController = navController,
+            currentTheme = selectedTheme,
+            dynamicColorEnabled = dynamicColorEnabled,
+            onThemeChange = onThemeChange,
+            onDynamicColorChange = onDynamicColorChange,
+            saveThemePreference = saveThemePreference,
+            saveDynamicColorPreference = saveDynamicColorPreference
+        ) }
         composable(Routes.LOGIN_SCREEN) {
             LoginScreen(
                 onGoogleSignIn = {},
