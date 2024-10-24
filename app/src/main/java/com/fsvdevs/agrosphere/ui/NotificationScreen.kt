@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -15,8 +16,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+import com.fsvdevs.agrosphere.repository.NotificationRepository
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTypography
 
@@ -25,6 +28,8 @@ fun NotificationsScreen(navController: NavController) {
     AgroSphereTheme(isSystemInDarkTheme()) {
         // State to manage the selected item in the navigation bar
         var selectedItem by remember { mutableStateOf(0) }
+        val notificationRepository = NotificationRepository.getInstance((LocalContext.current))
+        val notifications = remember { notificationRepository.getNotifications() }
 
         Column (
             modifier = Modifier
@@ -33,11 +38,16 @@ fun NotificationsScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Notifications!",
-                style = AppTypography.labelSmall,
-                textAlign = TextAlign.Center
-            )
+            //Display the sent notifications with a lazy column
+            LazyColumn {
+                items(notifications) { notification ->
+                    Text(
+                        text = "${notification.title}: ${notification.message}",
+                        style = AppTypography.body1,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }
