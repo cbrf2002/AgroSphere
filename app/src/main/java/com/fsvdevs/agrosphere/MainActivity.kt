@@ -1,5 +1,8 @@
 package com.fsvdevs.agrosphere
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
@@ -22,12 +25,15 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -47,6 +53,8 @@ import com.fsvdevs.agrosphere.ui.MonitorScreen
 import com.fsvdevs.agrosphere.ui.NotificationsScreen
 import com.fsvdevs.agrosphere.ui.PreferencesScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
+import com.fsvdevs.agrosphere.utils.NotificationHelper
+import com.fsvdevs.agrosphere.utils.checkSensorValuesAndNotify
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
@@ -55,10 +63,15 @@ import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.database.BuildConfig
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -93,6 +106,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val requestNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("MainActivity", "Notification permission granted")
+        } else {
+            // Permission is denied, handle accordingly
+            Log.e("MainActivity", "Notification permission denied")
+        }
+    }
+
     // Instantiate ViewModels using a factory or dependency injection
     private val sensorDataViewModel: SensorDataViewModel by viewModels {
         SensorDataViewModel.Factory(SensorDataRepository(database))
@@ -104,6 +128,8 @@ class MainActivity : ComponentActivity() {
         SensorRangeDataViewModel.Factory(SensorRangeDataRepository(database))
     }
 
+    private var lastCheckJob: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -112,8 +138,11 @@ class MainActivity : ComponentActivity() {
 
         auth = FirebaseAuth.getInstance()
         signInClient = Identity.getSignInClient(this)
-        database = FirebaseDatabase.getInstance("https://agrosphere-fsvdev-default-rtdb.asia-southeast1.firebasedatabase.app/").reference
+        database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
         firestore = FirebaseFirestore.getInstance()
+
+        checkAndRequestNotificationPermission()
+        NotificationHelper.createNotificationChannel(this)
 
         // Listen for changes in authentication state
         authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -124,9 +153,26 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkTheme = isSystemInDarkTheme()
+
             val navController = rememberNavController()
+            val navigateTo = intent.getStringExtra("navigate_to")
+
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
+
+            val sensorData by sensorDataViewModel.sensorData.collectAsState()
+            val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
+            val context = LocalContext.current
+
+            LaunchedEffect(sensorData, sensorRangeData) {
+                if (sensorData != null && sensorRangeData != null) {
+                    lastCheckJob?.cancel() // Cancel the previous job if it exists
+                    lastCheckJob = CoroutineScope(Dispatchers.Main).launch {
+                        delay(2000) // Adjust the delay as needed (2000 ms = 2 seconds)
+                        checkSensorValuesAndNotify(context, sensorData!!, sensorRangeData!!)
+                    }
+                }
+            }
 
             AgroSphereTheme(isDarkTheme) {
                 if (!isLoggedIn) {
@@ -171,7 +217,8 @@ class MainActivity : ComponentActivity() {
                                 .verticalScroll(rememberScrollState()),
                             sensorDataViewModel = sensorDataViewModel,
                             actuatorDataViewModel = actuatorDataViewModel,
-                            sensorRangeDataViewModel = sensorRangeDataViewModel
+                            sensorRangeDataViewModel = sensorRangeDataViewModel,
+                            navigateTo = navigateTo
                         )
                     }
                 }
@@ -187,6 +234,23 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         auth.removeAuthStateListener(authStateListener)
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Log.d("MainActivity", "Notification permission already granted")
+                }
+                else -> {
+                    Log.d("MainActivity", "Requesting notification permission")
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
 
     private fun createAccount(email: String, password: String) {
@@ -267,7 +331,8 @@ fun NavRoutes(
     modifier: Modifier = Modifier,
     sensorDataViewModel: SensorDataViewModel,
     actuatorDataViewModel: ActuatorDataViewModel,
-    sensorRangeDataViewModel: SensorRangeDataViewModel
+    sensorRangeDataViewModel: SensorRangeDataViewModel,
+    navigateTo: String?
 ) {
     NavHost(
         navController = navController,
@@ -286,7 +351,7 @@ fun NavRoutes(
         composable(Routes.MONITOR_SCREEN) { MonitorScreen(
             sensorDataViewModel
         ) }
-        composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen(navController) }
+        composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen() }
         composable(Routes.PREFERENCES_SCREEN) { PreferencesScreen(navController) }
         composable(Routes.LOGIN_SCREEN) {
             LoginScreen(
@@ -295,6 +360,15 @@ fun NavRoutes(
                 onSignUp = { _, _ -> },
                 onForgotPassword = {}
             )
+        }
+    }
+
+    LaunchedEffect(navigateTo) {
+        navigateTo?.let {
+            navController.navigate(it) {
+                popUpTo(Routes.DASHBOARD_SCREEN) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 }
