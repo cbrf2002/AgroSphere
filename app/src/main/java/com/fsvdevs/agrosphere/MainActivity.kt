@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.fsvdevs.agrosphere
 
 import android.Manifest
@@ -13,17 +14,22 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,9 +62,10 @@ import com.fsvdevs.agrosphere.ui.NotificationsScreen
 import com.fsvdevs.agrosphere.ui.PreferenceScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
-import com.fsvdevs.agrosphere.utils.NotificationHelper
-import com.fsvdevs.agrosphere.utils.PreferencesManager
-import com.fsvdevs.agrosphere.utils.checkSensorValuesAndNotify
+import com.fsvdevs.agrosphere.util.NotificationHelper
+import com.fsvdevs.agrosphere.util.PreferencesManager
+import com.fsvdevs.agrosphere.util.checkSensorValuesAndNotify
+import com.fsvdevs.agrosphere.util.getTitleForRoute
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
@@ -86,11 +93,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var database: DatabaseReference
     private lateinit var firestore: FirebaseFirestore
     private lateinit var preferencesManager: PreferencesManager
+    private var lastCheckJob: Job? = null
 
     private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val credential = signInClient.getSignInCredentialFromIntent(result.data)
-            val idToken = credential?.googleIdToken
+            val idToken = credential.googleIdToken
             if (idToken != null) {
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
                 auth.signInWithCredential(firebaseCredential)
@@ -132,28 +140,25 @@ class MainActivity : ComponentActivity() {
         SensorRangeDataViewModel.Factory(SensorRangeDataRepository(database))
     }
 
-    private var lastCheckJob: Job? = null
-
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
 
+        // Initialize Firebase and other dependencies
         auth = FirebaseAuth.getInstance()
         signInClient = Identity.getSignInClient(this)
         database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
         firestore = FirebaseFirestore.getInstance()
         preferencesManager = PreferencesManager(this)
-
         checkAndRequestNotificationPermission()
         NotificationHelper.createNotificationChannel(this)
 
         // Listen for changes in authentication state
         authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            val user = firebaseAuth.currentUser
-            isLoggedIn = user != null && user.isEmailVerified
-            Log.d(tag, "Auth state changed: isLoggedIn = $isLoggedIn")
+            isLoggedIn = firebaseAuth.currentUser != null && firebaseAuth.currentUser?.isEmailVerified == true
         }
 
         setContent {
@@ -167,6 +172,7 @@ class MainActivity : ComponentActivity() {
             val currentRoute = navBackStackEntry?.destination?.route
 
             val sensorData by sensorDataViewModel.sensorData.collectAsState()
+            val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
             val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
             val context = LocalContext.current
 
@@ -180,7 +186,7 @@ class MainActivity : ComponentActivity() {
                 if (sensorData != null && sensorRangeData != null) {
                     lastCheckJob?.cancel() // Cancel the previous job if it exists
                     lastCheckJob = CoroutineScope(Dispatchers.Main).launch {
-                        delay(2000) // Adjust the delay as needed (2000 ms = 2 seconds)
+                        delay(2000) // 2 seconds delay
                         checkSensorValuesAndNotify(context, sensorData!!, sensorRangeData!!)
                     }
                 }
@@ -190,21 +196,25 @@ class MainActivity : ComponentActivity() {
                 appTheme = selectedTheme,
                 dynamicColorEnabled = dynamicColorEnabled
             ) {
-                if (!isLoggedIn) {
-                    LoginScreen(
-                        onGoogleSignIn = { signInWithGoogle() },
-                        onEmailSignIn = { email, password -> signInWithEmail(email, password) },
-                        onSignUp = { email, password -> createAccount(email, password) },
-                        onForgotPassword = { email -> resetPassword(email) }
-                    )
-                } else {
-                    val sensorData by sensorDataViewModel.sensorData.collectAsState()
-                    val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
-                    val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
-
+                if (isLoggedIn) {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        topBar = {
+                            if (currentRoute != Routes.LOGIN_SCREEN && currentRoute != Routes.DASHBOARD_SCREEN) {
+                                TopAppBar(
+                                    title = { Text(getTitleForRoute(currentRoute)) },
+                                    navigationIcon = {
+                                        IconButton(onClick = { navController.popBackStack() }) {
+                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                        }
+                                    },
+                                    colors = TopAppBarDefaults.topAppBarColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                    )
+                                )
+                            }
+                        },
                         bottomBar = {
                             BottomNavigationBar(
                                 selectedItem = currentRoute ?: Routes.DASHBOARD_SCREEN,
@@ -223,6 +233,10 @@ class MainActivity : ComponentActivity() {
                         }
                     ) { paddingValues ->
                         NavRoutes(
+                            onGoogleSignIn = { signInWithGoogle() },
+                            onEmailSignIn = { email, password -> signInWithEmail(email, password) },
+                            onSignUp = { email, password -> createAccount(email, password) },
+                            onForgotPassword = { email -> resetPassword(email) },
                             sensorData = sensorData,
                             actuatorData = actuatorData,
                             sensorRangeData = sensorRangeData,
@@ -247,6 +261,13 @@ class MainActivity : ComponentActivity() {
                             saveDynamicColorPreference = ::saveDynamicColorPreference
                         )
                     }
+                } else {
+                    LoginScreen(
+                        onGoogleSignIn = { signInWithGoogle() },
+                        onEmailSignIn = { email, password -> signInWithEmail(email, password) },
+                        onSignUp = { email, password -> createAccount(email, password) },
+                        onForgotPassword = { email -> resetPassword(email) }
+                    )
                 }
             }
         }
@@ -362,6 +383,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NavRoutes(
+    onGoogleSignIn: () -> Unit,
+    onEmailSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onForgotPassword: (String) -> Unit,
     sensorData: SensorData?,
     actuatorData: ActuatorData?,
     sensorRangeData: SensorRangeData?,
@@ -387,10 +412,8 @@ fun NavRoutes(
             sensorData = sensorData,
             actuatorData = actuatorData,
             sensorRangeData = sensorRangeData,
-            sensorDataViewModel = sensorDataViewModel,
             actuatorDataViewModel = actuatorDataViewModel,
-            sensorRangeDataViewModel = sensorRangeDataViewModel,
-            navController = navController
+            sensorRangeDataViewModel = sensorRangeDataViewModel
         ) }
         composable(Routes.MONITOR_SCREEN) { MonitorScreen(
             sensorDataViewModel
@@ -407,10 +430,10 @@ fun NavRoutes(
         ) }
         composable(Routes.LOGIN_SCREEN) {
             LoginScreen(
-                onGoogleSignIn = {},
-                onEmailSignIn = { _, _ -> },
-                onSignUp = { _, _ -> },
-                onForgotPassword = {}
+                onGoogleSignIn = onGoogleSignIn,
+                onEmailSignIn = onEmailSignIn,
+                onSignUp = onSignUp,
+                onForgotPassword = onForgotPassword
             )
         }
     }
