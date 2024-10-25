@@ -97,10 +97,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
-
-
     implementation(libs.play.services.auth)
-
     implementation(platform(libs.firebase.bom))
     implementation("com.google.firebase:firebase-firestore") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
