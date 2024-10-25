@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PresetSelection(
     onPresetSelected: (ClosedFloatingPointRange<Float>, ClosedFloatingPointRange<Float>, String) -> Unit,
+    onDismiss: () -> Unit,
     currentTempRange: MutableState<ClosedFloatingPointRange<Float>>,
     currentHumRange: MutableState<ClosedFloatingPointRange<Float>>,
     currentPreset: MutableState<String>
@@ -137,8 +138,8 @@ fun PresetSelection(
                         currentTempRange.value = previousTempRange.value
                         currentHumRange.value = previousHumRange.value
                         currentPreset.value = previousPreset.value
-                        // Ensure to reset selected index based on previous preset
                         selectedPresetIndex.intValue = presets.indexOfFirst { it.first == previousPreset.value }
+                        onDismiss()  // Close the dialog
                     },
                     modifier = Modifier.wrapContentWidth().padding(end = 8.dp)
                 ) {
