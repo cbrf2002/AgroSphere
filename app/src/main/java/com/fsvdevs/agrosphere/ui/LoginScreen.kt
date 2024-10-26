@@ -34,18 +34,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fsvdevs.agrosphere.R
+import com.fsvdevs.agrosphere.util.TextLogo
 
 @Composable
 fun LoginScreen(
@@ -84,7 +81,7 @@ fun LoginScreen(
                     contentDescription = "AgroSphere Logo"
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 TextLogo()
 
@@ -275,29 +272,6 @@ fun LoginScreen(
             )
         }
     }
-}
-
-@Composable
-fun TextLogo() {
-    val text = buildAnnotatedString {
-        withStyle(
-            style = SpanStyle(
-                color = MaterialTheme.colorScheme.secondary,
-                fontSize = MaterialTheme.typography.displaySmall.fontSize
-            )
-        ) {
-            append("AGRO")
-        }
-        withStyle(style = SpanStyle(
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Black,
-            fontSize = MaterialTheme.typography.displaySmall.fontSize)
-        ) {
-            append("SPHERE")
-        }
-    }
-
-    Text(text = text)
 }
 
 @Preview(showBackground = true)
