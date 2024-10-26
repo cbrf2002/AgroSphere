@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -31,11 +29,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.fsvdevs.agrosphere.models.NotificationData
 import com.fsvdevs.agrosphere.repository.NotificationRepository
+import com.fsvdevs.agrosphere.ui.dialog.ConfirmationDialog
 import com.fsvdevs.agrosphere.ui.theme.AppTypography
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -64,16 +62,6 @@ fun NotificationsScreen() {
             .padding(16.dp)
             .systemBarsPadding()
     ) {
-        // Confirmation dialog for deletion
-        if (showDeleteConfirmation.value) {
-            ConfirmationDialog(
-                coroutineScope = coroutineScope,
-                showDeleteConfirmation = showDeleteConfirmation,
-                notificationRepository = notificationRepository,
-                notifications = notifications
-            )
-        }
-
         // Display notifications or a message if none available
         if (notifications.value.isEmpty()) {
             Text(
@@ -83,122 +71,112 @@ fun NotificationsScreen() {
                 modifier = Modifier.fillMaxWidth()
             )
         } else {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Historical Notifications",
-                            style = MaterialTheme.typography.titleLarge.copy(),
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.wrapContentWidth(),
-                            textAlign = TextAlign.Left
-                        )
-                        Spacer(modifier = Modifier.padding(8.dp))
-                        OutlinedButton(
-                            onClick = { showDeleteConfirmation.value = true },
-                            modifier = Modifier.wrapContentWidth()
-                        ) {
-                            Text(
-                                text = "Delete All Notifications",
-                                style = MaterialTheme.typography.labelSmall,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 1.dp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    notifications.value.forEach { notification ->
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = notification.title,
-                                textAlign = TextAlign.Start,
-                                style = AppTypography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.fillMaxWidth().weight(.4f)
-                            )
-                            Spacer(modifier = Modifier.weight(.2f))
-                            Text(
-                                text = formatNotificationTimestamp(notification.timestamp),
-                                textAlign = TextAlign.End,
-                                style = AppTypography.bodySmall,
-                                modifier = Modifier.fillMaxWidth().weight(.4f)
-                            )
-                        }
-                        Text(
-                            text = notification.message,
-                            textAlign = TextAlign.Start,
-                            style = AppTypography.bodySmall,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            thickness = 1.dp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                }
-            }
+            NotificationCardDisplay(
+                notifications = notifications,
+                showDeleteConfirmation = showDeleteConfirmation
+            )
+        }
+
+        // Overlay Confirmation Dialog
+        if (showDeleteConfirmation.value) {
+            Dialog(
+                onDismissRequest = { showDeleteConfirmation.value = false }
+            ) { ConfirmationDialog(
+                coroutineScope = coroutineScope,
+                showDeleteConfirmation = showDeleteConfirmation,
+                notificationRepository = notificationRepository,
+                notifications = notifications
+            )}
         }
     }
 }
 
 @Composable
-private fun ConfirmationDialog(
-    coroutineScope: CoroutineScope,
-    showDeleteConfirmation: MutableState<Boolean>,
-    notificationRepository: NotificationRepository,
-    notifications: MutableState<List<NotificationData>>
+fun NotificationCardDisplay(
+    notifications: MutableState<List<NotificationData>>,
+    showDeleteConfirmation: MutableState<Boolean>
 ) {
-    AlertDialog(
-        onDismissRequest = { showDeleteConfirmation.value = false },
-        title = { Text("Delete All Notifications") },
-        text = { Text("Are you sure you want to delete all notifications?") },
-        confirmButton = {
-            Button(
-                onClick = {
-                    // Call clearNotifications in a coroutine
-                    coroutineScope.launch {
-                        notificationRepository.clearNotifications() // Clear notifications
-                        notifications.value = emptyList() // Clear the list in UI
-                    }
-                    showDeleteConfirmation.value = false // Close the dialog
-                }
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Yes")
+                Text(
+                    text = "Historical Notifications",
+                    style = MaterialTheme.typography.titleLarge.copy(),
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.wrapContentWidth(),
+                    textAlign = TextAlign.Left
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                OutlinedButton(
+                    onClick = { showDeleteConfirmation.value = true },
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    Text(
+                        text = "Delete All Notifications",
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
-        },
-        dismissButton = {
-            Button(onClick = { showDeleteConfirmation.value = false }) {
-                Text("No")
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            notifications.value.forEach { notification ->
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = notification.title,
+                        textAlign = TextAlign.Start,
+                        style = AppTypography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth().weight(.4f)
+                    )
+                    Spacer(modifier = Modifier.weight(.2f))
+                    Text(
+                        text = formatNotificationTimestamp(notification.timestamp),
+                        textAlign = TextAlign.End,
+                        style = AppTypography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().weight(.4f)
+                    )
+                }
+                Text(
+                    text = notification.message,
+                    textAlign = TextAlign.Start,
+                    style = AppTypography.bodySmall,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    thickness = 1.dp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
-    )
-
+    }
 }
+
 
 private fun formatNotificationTimestamp(timestamp: Long): String {
     val dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault())
