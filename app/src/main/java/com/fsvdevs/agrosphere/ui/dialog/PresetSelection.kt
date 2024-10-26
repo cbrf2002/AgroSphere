@@ -1,5 +1,6 @@
 package com.fsvdevs.agrosphere.ui.dialog
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -57,46 +61,39 @@ fun PresetSelection(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(24.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
                 text = "Presets",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineSmall
             )
             Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = buildAnnotatedString {
+                    append("Select a growth phase preset or specific plant type to automatically adjust temperature and ")
+                    append("humidity ranges, or choose ")
+                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                        append("Manual Range")
+                    }
+                    append(" to set your own custom values.")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             LazyColumn {
                 itemsIndexed(presets) { index, (name, range) ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f).padding(bottom = 8.dp),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            Text(
-                                text = name,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            if (name != "Manual Range") {
-                                Text(
-                                    text = "${range.first.start}-${range.first.endInclusive}°C, ${range.second.start}-${range.second.endInclusive}%",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                        RadioButton(
-                            selected = selectedPresetIndex.intValue == index,
-                            onClick = {
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable {
                                 selectedPresetIndex.intValue = index
                                 previousTempRange.value = currentTempRange.value // Store previous temp range
                                 previousHumRange.value = currentHumRange.value // Store previous humidity range
@@ -113,7 +110,33 @@ fun PresetSelection(
                                 }
 
                                 currentPreset.value = name // Update current preset state
+                            },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(bottom = 8.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = name,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (name != "Manual Range") {
+                                Text(
+                                    text = "${range.first.start}-${range.first.endInclusive}°C, ${range.second.start}-${range.second.endInclusive}%",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
                             }
+                        }
+                        RadioButton(
+                            selected = selectedPresetIndex.intValue == index,
+                            onClick = null // RadioButton click is handled by the row
                         )
                     }
                 }
@@ -141,11 +164,27 @@ fun PresetSelection(
                         selectedPresetIndex.intValue = presets.indexOfFirst { it.first == previousPreset.value }
                         onDismiss()  // Close the dialog
                     },
-                    modifier = Modifier.wrapContentWidth().padding(end = 8.dp)
+                    modifier = Modifier.wrapContentWidth()
                 ) {
                     Text(text = "Cancel")
                 }
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PresetSelectionPreview() {
+    val currentTempRange = remember { mutableStateOf(18f..24f) } // Temp range as per the preset
+    val currentHumRange = remember { mutableStateOf(60f..70f) }  // Humidity range as per the preset
+    val currentPreset = remember { mutableStateOf("Seedling Phase") }
+
+    PresetSelection(
+        onPresetSelected = { _, _, _ -> },
+        onDismiss = {},
+        currentTempRange = currentTempRange,
+        currentHumRange = currentHumRange,
+        currentPreset = currentPreset
+    )
 }
