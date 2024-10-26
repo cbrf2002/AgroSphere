@@ -203,7 +203,10 @@ class MainActivity : ComponentActivity() {
                         topBar = {
                             if (currentRoute != Routes.LOGIN_SCREEN && currentRoute != Routes.DASHBOARD_SCREEN) {
                                 TopAppBar(
-                                    title = { Text(getTitleForRoute(currentRoute)) },
+                                    title = { Text(
+                                        text = getTitleForRoute(currentRoute),
+                                        style = MaterialTheme.typography.headlineMedium
+                                    ) },
                                     navigationIcon = {
                                         IconButton(onClick = { navController.popBackStack() }) {
                                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
