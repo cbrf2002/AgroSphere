@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -17,6 +18,7 @@ import androidx.core.content.ContextCompat
 import com.fsvdevs.agrosphere.MainActivity
 import com.fsvdevs.agrosphere.R
 import com.fsvdevs.agrosphere.routes.Routes
+import com.fsvdevs.agrosphere.ui.theme.primaryLight
 
 object NotificationHelper {
     private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
@@ -49,7 +51,7 @@ object NotificationHelper {
         // Create an Intent to open MainActivity and navigate to NotificationScreen
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("navigate_to", Routes.NOTIFICATIONS_SCREEN) // Pass the route to open NotificationScreen
+            putExtra("navigate_to", Routes.NOTIFICATIONS_SCREEN)
         }
 
         // Create a PendingIntent for the notification click action
@@ -60,6 +62,7 @@ object NotificationHelper {
         // Create the notification with grouping and pending intent
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.agrosphere_mono)
+            .setColor(primaryLight.toArgb())
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -95,7 +98,8 @@ object NotificationHelper {
         if (currentTime - lastSummaryNotificationTime > cooldownTime) {
             // Create the summary notification
             val summaryNotificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.agrosphere_mono)  // Replace with actual app icon
+                .setSmallIcon(R.drawable.agrosphere_mono)
+                .setColor(primaryLight.toArgb())
                 .setContentTitle("Sensor Alerts")
                 .setContentText("You have new sensor alerts.")
                 .setStyle(NotificationCompat.InboxStyle()
