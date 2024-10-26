@@ -443,7 +443,7 @@ fun ClimateRangeSliders(
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.W700
         )
-        PresetButton(
+        PresetButtonForDialog(
             sensorRangeDataViewModel = sensorRangeDataViewModel,
             currentTempRange = tempRange,
             currentHumRange = humRange,
@@ -548,7 +548,7 @@ fun SensorRow(
 }
 
 @Composable
-fun PresetButton(
+fun PresetButtonForDialog(
     sensorRangeDataViewModel: SensorRangeDataViewModel,
     currentTempRange: MutableState<ClosedFloatingPointRange<Float>>,
     currentHumRange: MutableState<ClosedFloatingPointRange<Float>>,
