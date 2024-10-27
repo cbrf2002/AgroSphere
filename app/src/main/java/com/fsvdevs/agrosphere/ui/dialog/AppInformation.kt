@@ -1,11 +1,11 @@
 package com.fsvdevs.agrosphere.ui.dialog
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,13 +20,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fsvdevs.agrosphere.BuildConfig
-import com.fsvdevs.agrosphere.R
 import com.fsvdevs.agrosphere.util.ContentText
 import com.fsvdevs.agrosphere.util.TextLogo
 
@@ -83,20 +82,22 @@ fun AppInformation() {
 
 @Composable
 fun AppLogoText() {
-    Image(
-        painter = painterResource(id = R.drawable.agrosphere),
-        modifier = Modifier.height(100.dp),
-        contentDescription = "AgroSphere Logo"
-    )
-    Spacer(modifier = Modifier.height(16.dp))
-    TextLogo()
-    Text(
-        text = "IoT-Based Automated Greenhouse\nMonitoring System",
-        style = MaterialTheme.typography.titleMedium,
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-    Spacer(modifier = Modifier.height(16.dp))
+    val dialogWidth = LocalConfiguration.current.screenWidthDp.dp
+    val logoSize = dialogWidth * 0.4f
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        TextLogo(modifier = Modifier.width(logoSize))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "IoT-Based Automated Greenhouse\nMonitoring System",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 }
 
 @Composable
