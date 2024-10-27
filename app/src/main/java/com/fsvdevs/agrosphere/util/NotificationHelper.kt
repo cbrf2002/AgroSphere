@@ -49,7 +49,6 @@ object NotificationHelper {
                     Log.d("NotificationHelper", "Notification permission already granted")
                 }
                 else -> {
-                    Log.d("NotificationHelper", "Requesting notification permission")
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
@@ -69,39 +68,31 @@ object NotificationHelper {
     fun sendNotification(context: Context, title: String, message: String) {
         // Check for notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             Log.e("NotificationHelper", "Notification permission not granted")
             return
         }
 
-        // Create an Intent to open MainActivity and navigate to NotificationScreen
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", Routes.NOTIFICATIONS_SCREEN)
         }
 
-        // Create a PendingIntent for the notification click action
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(
+        val pendingIntent = PendingIntent.getActivity(
             context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Create the notification with grouping and pending intent
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.agrosphere_mono)
             .setColor(primaryLight.toArgb())
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setGroup(NOTIFICATION_GROUP_KEY)  // Set the group key for the notification
-            .setAutoCancel(true)  // Automatically remove the notification when clicked
-            .setContentIntent(pendingIntent)  // Set the pending intent
+            .setGroup(NOTIFICATION_GROUP_KEY)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
 
-        // Generate a unique notification ID using the counter
-        val notificationId = notificationIdCounter++
-
-        // Show the notification with a unique ID
-        NotificationManagerCompat.from(context).notify(notificationId, notificationBuilder.build())
+        NotificationManagerCompat.from(context).notify(notificationIdCounter++, notificationBuilder.build())
     }
 
     fun showGroupSummaryNotification(context: Context) {
