@@ -11,9 +11,11 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.7.0"
 activity = "1.9.3"
+google-services = "4.4.2"
 constraintlayout = "2.1.4"
 mpandroidchart = "v3.1.0"
 playServicesAuth = "21.2.0"
+playServicesBase = "18.5.0"
 protobufJavalite = "3.25.1"
 roomRuntime = "2.6.1"
 ui = "1.7.4"
@@ -25,7 +27,6 @@ material3Android = "1.3.0"
 uiTextGoogleFonts = "1.7.4"
 toolsCore = "1.0.0-alpha10"
 runtime-livedata = "1.7.4"
-vico = "1.15.0"
 workRuntimeKtx = "2.9.1"
 
 [libraries]
@@ -60,12 +61,13 @@ mpandroidchart = { module = "com.github.PhilJay:MPAndroidChart", version.ref = "
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref="composeNavigation" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtime-livedata"}
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+play-services-base = { module = "com.google.android.gms:play-services-base", version.ref = "playServicesBase" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavalite" }
-vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization-json = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref="kotlin"}
