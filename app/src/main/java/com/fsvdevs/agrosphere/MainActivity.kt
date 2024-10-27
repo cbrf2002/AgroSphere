@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission(requestNotificationPermissionLauncher)
         checkAndRequestNotificationPermission(this, requestNotificationPermissionLauncher)
         NotificationHelper.createNotificationChannel(this)
+        Log.d("MainActivity", "Notification channel created")
         Utils.init(this)
 
         // Listen for changes in authentication state
@@ -151,15 +152,19 @@ class MainActivity : ComponentActivity() {
 
             val context = LocalContext.current
 
-            LaunchedEffect(sensorData, sensorRangeData) {
+            LaunchedEffect(Unit) {
                 preferencesManager.themeFlow.collect { theme ->
                     selectedTheme = theme
                 }
+            }
 
+            LaunchedEffect(sensorData, sensorRangeData) {
+
+                // Ensure non-null sensor data for the notification trigger
                 if (sensorData != null && sensorRangeData != null) {
                     lastCheckJob?.cancel() // Cancel the previous job if it exists
                     lastCheckJob = CoroutineScope(Dispatchers.Main).launch {
-                        delay(2000) // 2 seconds delay
+                        delay(5000) // 2 seconds delay
                         checkSensorValuesAndNotify(context, sensorData!!, sensorRangeData!!)
                     }
                 }
