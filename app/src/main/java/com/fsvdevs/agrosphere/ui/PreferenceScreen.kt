@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavController
 import com.fsvdevs.agrosphere.ui.dialog.AppInformation
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
 import com.fsvdevs.agrosphere.util.ContentText
@@ -29,6 +30,7 @@ import com.google.firebase.auth.FirebaseAuth
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferenceScreen(
+    navController: NavController,
     currentTheme: AppTheme,
     dynamicColorEnabled: Boolean,
     onThemeChange: (AppTheme) -> Unit,
@@ -55,7 +57,7 @@ fun PreferenceScreen(
         NotificationSettings()
         HorizontalDivider()
 
-        AccountSettings()
+        AccountSettings(navController = navController)
         HorizontalDivider()
 
         AboutUsSection()
@@ -168,7 +170,7 @@ fun NotificationSettings() {
 }
 
 @Composable
-fun AccountSettings() {
+fun AccountSettings(navController: NavController) {
     var showAccountInfo by rememberSaveable { mutableStateOf(false) }
     val auth = FirebaseAuth.getInstance()
     val user = auth.currentUser
@@ -205,6 +207,7 @@ fun AccountSettings() {
 
     PreferenceItem(label = "Sign Out", onClick = {
         FirebaseAuth.getInstance().signOut()
+        navController.popBackStack()
     }) {
         // Optional: Add an icon or additional UI if desired
     }
