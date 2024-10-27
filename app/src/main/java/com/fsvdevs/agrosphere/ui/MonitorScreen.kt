@@ -45,6 +45,7 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.utils.MPPointF
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,6 +61,10 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     // Fetch sensor data when the tab index changes
     LaunchedEffect(selectedTabIndex.intValue) {
         sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+        while(true) {
+            sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+            delay(120000) // Fetch every 2 minutes
+        }
     }
 
     Column(
@@ -95,7 +100,10 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
                 timeRanges.forEachIndexed { index, range ->
                     Tab(
                         selected = selectedTabIndex.intValue == index,
-                        onClick = { selectedTabIndex.intValue = index },
+                        onClick = {
+                            selectedTabIndex.intValue = index
+                            sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[index])
+                                  },
                         text = { Text(range) }
                     )
                 }
@@ -177,6 +185,7 @@ fun SensorChart(
 
     val lineData = LineData(lineDataSet)
     val context = LocalContext.current
+
     val textColorOnSurface = MaterialTheme.colorScheme.onSurface.toArgb()
     val textColorOutline = MaterialTheme.colorScheme.outline.toArgb()
 
