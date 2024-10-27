@@ -1,5 +1,6 @@
 package com.fsvdevs.agrosphere.ui
 
+import android.app.Dialog
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fsvdevs.agrosphere.R
+import com.fsvdevs.agrosphere.ui.dialog.PrivacyDialog
 import com.fsvdevs.agrosphere.util.TextLogo
 
 @Composable
@@ -57,6 +60,7 @@ fun LoginScreen(
     var isSignUpVisible by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     val passwordFocusRequester = remember { FocusRequester() }
+    var showTermsDialog = remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -264,12 +268,23 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "By signing up, you agree to our Terms of Service and Privacy Policy",
+                text = "By signing up, you agree to our ",
                 fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             )
+            TextButton(
+                onClick = { showTermsDialog.value = true },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Terms of Service and Privacy Policy")
+            }
+            if (showTermsDialog.value) {
+                PrivacyDialog(
+                    onDismiss = { showTermsDialog.value = false }
+                )
+            }
         }
     }
 }
