@@ -3,8 +3,8 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.kotlin.serialization.json)
     alias(libs.plugins.compose.compiler)
-    id("com.google.gms.google-services")
-    id("com.google.devtools.ksp") version "2.1.0-Beta2-1.0.25"
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -25,7 +25,7 @@ android {
         minSdk = 29
         //noinspection EditedTargetSdkVersion
         targetSdk = 35
-        versionCode = 173
+        versionCode = 177
         versionName = "0.97"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -73,32 +73,32 @@ android {
 }
 
 dependencies {
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.play.services.base)
+    implementation(libs.androidx.activity)
     implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.android)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.material3.android)
     implementation(libs.androidx.ui.text.google.fonts)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.datastore.preferences)
-    implementation(libs.navigation.compose)
-    implementation(libs.androidx.compose.runtime.livedata)
-    implementation(libs.mpandroidchart)
+    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.hilt.work)
-    implementation(libs.androidx.room.runtime)
-    ksp(libs.androidx.room.compiler)
-    implementation(libs.androidx.room.ktx)
+    implementation(libs.mpandroidchart)
+    implementation(libs.navigation.compose)
     implementation(libs.play.services.auth)
+    implementation(libs.play.services.base)
+    implementation(libs.protobuf.javalite)
+    implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
+    ksp(libs.androidx.room.compiler)
+
     implementation("com.google.firebase:firebase-firestore") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
@@ -114,13 +114,9 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx") {
         exclude(group = "com.google.protobuf", module = "protobuf-java") // Exclude protobuf-java
     }
-
-    implementation(libs.protobuf.javalite)
-
     implementation(libs.androidx.tools.core) {
         exclude(group = "com.google.protobuf", module = "protobuf-java")
     }
-
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
