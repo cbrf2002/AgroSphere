@@ -1,6 +1,5 @@
 package com.fsvdevs.agrosphere.ui
 
-import android.app.Dialog
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
