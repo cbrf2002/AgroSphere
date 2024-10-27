@@ -12,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -24,7 +23,6 @@ import com.fsvdevs.agrosphere.models.SensorData
 import com.fsvdevs.agrosphere.models.SensorRangeData
 import com.fsvdevs.agrosphere.ui.dialog.PresetSelection
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
-import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
