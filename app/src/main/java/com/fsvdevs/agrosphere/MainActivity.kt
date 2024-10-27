@@ -4,12 +4,10 @@ package com.fsvdevs.agrosphere
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -46,9 +44,6 @@ import androidx.navigation.compose.rememberNavController
 import com.fsvdevs.agrosphere.models.ActuatorData
 import com.fsvdevs.agrosphere.models.SensorData
 import com.fsvdevs.agrosphere.models.SensorRangeData
-import com.fsvdevs.agrosphere.repository.ActuatorDataRepository
-import com.fsvdevs.agrosphere.repository.SensorDataRepository
-import com.fsvdevs.agrosphere.repository.SensorRangeDataRepository
 import com.fsvdevs.agrosphere.routes.Routes
 import com.fsvdevs.agrosphere.ui.DashboardScreen
 import com.fsvdevs.agrosphere.ui.LoginScreen
@@ -58,23 +53,23 @@ import com.fsvdevs.agrosphere.ui.PreferenceScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
 import com.fsvdevs.agrosphere.util.AuthHelper
+import com.fsvdevs.agrosphere.util.AuthHelper.handleGoogleSignIn
+import com.fsvdevs.agrosphere.util.FirebaseHelper
+import com.fsvdevs.agrosphere.util.FirebaseHelper.auth
+import com.fsvdevs.agrosphere.util.FirebaseHelper.signInClient
 import com.fsvdevs.agrosphere.util.NotificationHelper
 import com.fsvdevs.agrosphere.util.NotificationHelper.checkAndRequestNotificationPermission
+import com.fsvdevs.agrosphere.util.NotificationHelper.requestNotificationPermission
 import com.fsvdevs.agrosphere.util.PreferencesManager
+import com.fsvdevs.agrosphere.util.ViewModelFactory
 import com.fsvdevs.agrosphere.util.checkSensorValuesAndNotify
 import com.fsvdevs.agrosphere.util.getTitleForRoute
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
 import com.github.mikephil.charting.utils.Utils
-import com.google.android.gms.auth.api.identity.Identity
-import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -82,62 +77,28 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var signInClient: SignInClient
-    private var isLoggedIn by mutableStateOf(false)
-    private val tag = "MainActivity"
     private lateinit var authStateListener: FirebaseAuth.AuthStateListener
-    private lateinit var database: DatabaseReference
-    private lateinit var firestore: FirebaseFirestore
     private lateinit var preferencesManager: PreferencesManager
+
+    private var isLoggedIn by mutableStateOf(false)
     private var lastCheckJob: Job? = null
-
     private val googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val credential = signInClient.getSignInCredentialFromIntent(result.data)
-            val idToken = credential.googleIdToken
-            if (idToken != null) {
-                val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
-                auth.signInWithCredential(firebaseCredential)
-                    .addOnCompleteListener(this) { task ->
-                        if (task.isSuccessful) {
-                            Log.d(tag, "Google Sign-in successful")
-                            Toast.makeText(baseContext, "Google Sign-in successful", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Log.e(tag, "Google Sign-in failed", task.exception)
-                            Toast.makeText(baseContext, "Google Sign-in failed", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-            }
-        } else {
-            Log.e(tag, "Google Sign-in canceled")
-            Toast.makeText(baseContext, "Google Sign-in canceled", Toast.LENGTH_SHORT).show()
-        }
+        handleGoogleSignIn(result, signInClient, auth, this)
     }
-
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             Log.d("MainActivity", "Notification permission granted")
         } else {
-            // Permission is denied, handle accordingly
             Log.e("MainActivity", "Notification permission denied")
         }
     }
 
-    // Instantiate ViewModels using a factory or dependency injection
-    private val sensorDataViewModel: SensorDataViewModel by viewModels {
-        SensorDataViewModel.Factory(SensorDataRepository(database, this))
-    }
-    private val actuatorDataViewModel: ActuatorDataViewModel by viewModels {
-        ActuatorDataViewModel.Factory(ActuatorDataRepository(database))
-    }
-    private val sensorRangeDataViewModel: SensorRangeDataViewModel by viewModels {
-        SensorRangeDataViewModel.Factory(SensorRangeDataRepository(database))
-    }
+    private val sensorDataViewModel: SensorDataViewModel by lazy { ViewModelFactory.provideSensorDataViewModel(this) }
+    private val actuatorDataViewModel: ActuatorDataViewModel by lazy { ViewModelFactory.provideActuatorDataViewModel(this) }
+    private val sensorRangeDataViewModel: SensorRangeDataViewModel by lazy { ViewModelFactory.provideSensorRangeDataViewModel(this) }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -146,11 +107,9 @@ class MainActivity : ComponentActivity() {
 
         // Initialize Firebase and other dependencies
         FirebaseApp.initializeApp(this)
-        auth = FirebaseAuth.getInstance()
-        signInClient = Identity.getSignInClient(this)
-        database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
-        firestore = FirebaseFirestore.getInstance()
+        FirebaseHelper.initialize(this)
         preferencesManager = PreferencesManager(this)
+        requestNotificationPermission(requestNotificationPermissionLauncher)
         checkAndRequestNotificationPermission(this, requestNotificationPermissionLauncher)
         NotificationHelper.createNotificationChannel(this)
         Utils.init(this)
@@ -176,13 +135,11 @@ class MainActivity : ComponentActivity() {
 
             val context = LocalContext.current
 
-            LaunchedEffect(Unit) {
+            LaunchedEffect(sensorData, sensorRangeData) {
                 preferencesManager.themeFlow.collect { theme ->
                     selectedTheme = theme
                 }
-            }
 
-            LaunchedEffect(sensorData, sensorRangeData) {
                 if (sensorData != null && sensorRangeData != null) {
                     lastCheckJob?.cancel() // Cancel the previous job if it exists
                     lastCheckJob = CoroutineScope(Dispatchers.Main).launch {
@@ -197,69 +154,21 @@ class MainActivity : ComponentActivity() {
                 dynamicColorEnabled = dynamicColorEnabled
             ) {
                 if (isLoggedIn) {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        topBar = {
-                            if (currentRoute != Routes.LOGIN_SCREEN && currentRoute != Routes.DASHBOARD_SCREEN) {
-                                TopAppBar(
-                                    title = { Text(
-                                        text = getTitleForRoute(currentRoute),
-                                        style = MaterialTheme.typography.headlineMedium
-                                    ) },
-                                    navigationIcon = {
-                                        IconButton(onClick = { navController.popBackStack() }) {
-                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                                        }
-                                    },
-                                    colors = TopAppBarDefaults.topAppBarColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                    )
-                                )
-                            }
-                        },
-                        bottomBar = {
-                            BottomNavigationBar(
-                                selectedItem = currentRoute ?: Routes.DASHBOARD_SCREEN,
-                                onItemSelected = { route ->
-                                    if (route != currentRoute) {
-                                        navController.navigate(route) {
-                                            popUpTo(navController.graph.startDestinationId) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    ) { paddingValues ->
-                        NavRoutes(
-                            sensorData = sensorData,
-                            actuatorData = actuatorData,
-                            sensorRangeData = sensorRangeData,
-                            navController = navController,
-                            modifier = Modifier
-                                .padding(paddingValues)
-                                .verticalScroll(rememberScrollState()),
-                            sensorDataViewModel = sensorDataViewModel,
-                            actuatorDataViewModel = actuatorDataViewModel,
-                            sensorRangeDataViewModel = sensorRangeDataViewModel,
-                            navigateTo = navigateTo,
-                            selectedTheme = selectedTheme,
-                            dynamicColorEnabled = dynamicColorEnabled,
-                            onThemeChange = { newTheme ->
-                                saveThemePreference(newTheme)
-                                selectedTheme = newTheme
-                            },
-                            onDynamicColorChange = { isEnabled ->
-                                saveDynamicColorPreference(isEnabled)
-                            },
-                            saveThemePreference = ::saveThemePreference,
-                            saveDynamicColorPreference = ::saveDynamicColorPreference
-                        )
-                    }
+                    MainContent(
+                        navController = navController,
+                        currentRoute = currentRoute,
+                        sensorData = sensorData,
+                        actuatorData = actuatorData,
+                        sensorRangeData = sensorRangeData,
+                        sensorDataViewModel = sensorDataViewModel,
+                        actuatorDataViewModel = actuatorDataViewModel,
+                        sensorRangeDataViewModel = sensorRangeDataViewModel,
+                        selectedTheme = selectedTheme,
+                        dynamicColorEnabled = dynamicColorEnabled,
+                        navigateTo = navigateTo,
+                        saveThemePreference = { theme -> saveThemePreference(theme) },
+                        saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
+                    )
                 } else {
                     LoginScreen(
                         onGoogleSignIn = { AuthHelper.signInWithGoogle(this, signInClient, googleSignInLauncher) },
@@ -292,6 +201,91 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         auth.removeAuthStateListener(authStateListener)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainContent(
+    navController: NavHostController,
+    currentRoute: String?,
+    sensorData: SensorData? = null,
+    actuatorData: ActuatorData? = null,
+    sensorRangeData: SensorRangeData? = null,
+    sensorDataViewModel: SensorDataViewModel,
+    actuatorDataViewModel: ActuatorDataViewModel,
+    sensorRangeDataViewModel: SensorRangeDataViewModel,
+    selectedTheme: AppTheme = AppTheme.AUTO,
+    dynamicColorEnabled: Boolean = false,
+    navigateTo: String? = null,
+    saveThemePreference: (AppTheme) -> Unit = {},
+    saveDynamicColorPreference: (Boolean) -> Unit = {}
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        topBar = {
+            if (currentRoute != Routes.LOGIN_SCREEN && currentRoute != Routes.DASHBOARD_SCREEN) {
+                TopAppBar(
+                    title = { Text(
+                        text = getTitleForRoute(currentRoute),
+                        style = MaterialTheme.typography.headlineMedium
+                    ) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                )
+            }
+        },
+        bottomBar = {
+            BottomNavigationBar(
+                selectedItem = currentRoute ?: Routes.DASHBOARD_SCREEN,
+                onItemSelected = { route ->
+                    if (route != currentRoute) {
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        NavRoutes(
+            sensorData = sensorData,
+            actuatorData = actuatorData,
+            sensorRangeData = sensorRangeData,
+            navController = navController,
+            modifier = Modifier
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState()),
+            sensorDataViewModel = sensorDataViewModel,
+            actuatorDataViewModel = actuatorDataViewModel,
+            sensorRangeDataViewModel = sensorRangeDataViewModel,
+            navigateTo = navigateTo,
+            selectedTheme = selectedTheme,
+            dynamicColorEnabled = dynamicColorEnabled,
+            onThemeChange = { newTheme ->
+                saveThemePreference(newTheme)
+            },
+            onDynamicColorChange = { isEnabled ->
+                saveDynamicColorPreference(isEnabled)
+            },
+            saveThemePreference = { theme ->
+                saveThemePreference(theme)
+            },
+            saveDynamicColorPreference = { isEnabled ->
+                saveDynamicColorPreference(isEnabled)
+            }
+        )
     }
 }
 
