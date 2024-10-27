@@ -1,5 +1,6 @@
 package com.fsvdevs.agrosphere.repository
 
+import android.content.Context
 import android.util.Log
 import com.fsvdevs.agrosphere.models.SensorData
 import com.google.firebase.database.DataSnapshot
@@ -17,22 +18,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-class SensorDataRepository(private val database: DatabaseReference) {
+class SensorDataRepository(
+    private val database: DatabaseReference,
+    private val context: Context
+) {
+    // Constants declaration
     private val tagSensorDataRepository = "SensorDataRepository"
     private val firestore = FirebaseFirestore.getInstance()
     private val sensorHistoryCollection = firestore.collection("sensorHistory")
 
     private val remoteConfig = FirebaseRemoteConfig.getInstance()
-    private var firestoreSaveInterval: Long = 600000L // Default to 10 minutes
-    private var lastFirestoreSaveTime: Long = 0
-    private var lastUploadedTimestamp: Long = 0 // Store the last uploaded timestamp
-    private var lastUploadedSensorData: SensorData? = null // Store the last uploaded sensor data
-    private var lastDataChangeTime: Long = 0
+    private var firestoreSaveInterval: Long = 600000L           // Default to 10 minutes
+    private var lastFirestoreSaveTime: Long = 0                 // Store the last Firestore save time
+    private var lastUploadedTimestamp: Long = 0                 // Store the last uploaded timestamp
+    private var lastUploadedSensorData: SensorData? = null      // Store the last uploaded sensor data
+    private var lastDataChangeTime: Long = 0                    // Store the last data change time
 
     private val _sensorData = MutableStateFlow<SensorData?>(null)
     val sensorData: StateFlow<SensorData?> = _sensorData
 
-    private val sensorDataListener = object : ValueEventListener {
+    private val sensorDataListener = object : ValueEventListener { // Listener for sensor data
         override fun onDataChange(snapshot: DataSnapshot) {
             val currentTime = System.currentTimeMillis()
 
@@ -56,8 +61,7 @@ class SensorDataRepository(private val database: DatabaseReference) {
             }
         }
 
-        private fun isCompleteSensorData(sensorData: SensorData): Boolean {
-            // Ensure that all sensor fields have meaningful values
+        private fun isCompleteSensorData(sensorData: SensorData): Boolean { // Ensure that all sensor fields have meaningful values
             return sensorData.humidity != 0.0 &&
                     sensorData.lightLevel != 0.0 &&
                     sensorData.pH != 0.0 &&
@@ -66,7 +70,7 @@ class SensorDataRepository(private val database: DatabaseReference) {
                     sensorData.waterTemp != 0.0
         }
 
-        override fun onCancelled(error: DatabaseError) {
+        override fun onCancelled(error: DatabaseError) { // Handle errors
             Log.e(tagSensorDataRepository, "Failed to fetch sensor data", error.toException())
         }
     }
@@ -74,9 +78,10 @@ class SensorDataRepository(private val database: DatabaseReference) {
     init {
         fetchRemoteConfig()
         startListeningForSensorData()
+        loadLastFirestoreTimestamps()
     }
 
-    private fun fetchRemoteConfig() {
+    private fun fetchRemoteConfig() { // Fetch remote config values
         remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 firestoreSaveInterval = remoteConfig.getLong("firestore_save_interval")
@@ -89,9 +94,23 @@ class SensorDataRepository(private val database: DatabaseReference) {
         database.child("sensorData").addValueEventListener(sensorDataListener)
     }
 
+
+    private fun loadLastFirestoreTimestamps() {
+        val prefs = context.getSharedPreferences("sensor_data_prefs", Context.MODE_PRIVATE)
+        lastFirestoreSaveTime = prefs.getLong("lastFirestoreSaveTime", 0L)
+        lastUploadedTimestamp = prefs.getLong("lastUploadedTimestamp", 0L)
+    }
+
+    private fun saveLastFirestoreTimestamps() {
+        val prefs = context.getSharedPreferences("sensor_data_prefs", Context.MODE_PRIVATE).edit()
+        prefs.putLong("lastFirestoreSaveTime", lastFirestoreSaveTime)
+        prefs.putLong("lastUploadedTimestamp", lastUploadedTimestamp)
+        prefs.apply()
+    }
+
     // Save only the latest sensor data to Firestore every SaveInterval, but check if timestamp changed
     private suspend fun saveSensorDataToFirestore(sensorData: SensorData) {
-        // Add a short delay to allow other operations to complete
+        // Add a delay to allow other operations to complete
         delay(10000) // Delay for 10 seconds
 
         val currentTime = System.currentTimeMillis()
@@ -120,21 +139,14 @@ class SensorDataRepository(private val database: DatabaseReference) {
                             lastFirestoreSaveTime = currentTime // Update the last save time
                             lastUploadedTimestamp = sensorData.timestamp // Update the last uploaded timestamp
                             lastUploadedSensorData = sensorData // Store the last uploaded sensor data
+                            saveLastFirestoreTimestamps() // Save the last timestamps
                             Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorData")
-                        } else {
-                            Log.d(tagSensorDataRepository, "Duplicate sensor data, skipping Firestore save.")
                         }
-                    } else {
-                        Log.d(tagSensorDataRepository, "Skipping Firestore save, interval not reached")
                     }
                 } catch (e: Exception) {
                     Log.e(tagSensorDataRepository, "Failed to save sensor data to Firestore", e)
                 }
-            } else {
-                Log.d(tagSensorDataRepository, "Skipping Firestore save, data is duplicate.")
             }
-        } else {
-            Log.d(tagSensorDataRepository, "Skipping Firestore save, timestamp is within 10 minutes")
         }
     }
 
