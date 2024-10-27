@@ -1,6 +1,7 @@
 @file:Suppress("DEPRECATION")
 package com.fsvdevs.agrosphere
 
+import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
@@ -59,6 +60,7 @@ import com.fsvdevs.agrosphere.ui.LoginScreen
 import com.fsvdevs.agrosphere.ui.MonitorScreen
 import com.fsvdevs.agrosphere.ui.NotificationsScreen
 import com.fsvdevs.agrosphere.ui.PreferenceScreen
+import com.fsvdevs.agrosphere.ui.SplashScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
 import com.fsvdevs.agrosphere.util.AuthHelper
@@ -108,6 +110,7 @@ class MainActivity : ComponentActivity() {
     private val actuatorDataViewModel: ActuatorDataViewModel by lazy { ViewModelFactory.provideActuatorDataViewModel(this) }
     private val sensorRangeDataViewModel: SensorRangeDataViewModel by lazy { ViewModelFactory.provideSensorRangeDataViewModel(this) }
 
+    @OptIn(ExperimentalAnimationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -142,6 +145,8 @@ class MainActivity : ComponentActivity() {
             val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
             val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
 
+            var showSplash by remember { mutableStateOf(true) }
+
             val context = LocalContext.current
 
             LaunchedEffect(sensorData, sensorRangeData) {
@@ -158,33 +163,47 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            LaunchedEffect(Unit) {
+                delay(1500)
+                showSplash = false
+            }
+
             AgroSphereTheme(
                 appTheme = selectedTheme,
                 dynamicColorEnabled = dynamicColorEnabled
             ) {
-                if (isLoggedIn) {
-                    MainContent(
-                        navController = navController,
-                        currentRoute = currentRoute,
-                        sensorData = sensorData,
-                        actuatorData = actuatorData,
-                        sensorRangeData = sensorRangeData,
-                        sensorDataViewModel = sensorDataViewModel,
-                        actuatorDataViewModel = actuatorDataViewModel,
-                        sensorRangeDataViewModel = sensorRangeDataViewModel,
-                        selectedTheme = selectedTheme,
-                        dynamicColorEnabled = dynamicColorEnabled,
-                        navigateTo = navigateTo,
-                        saveThemePreference = { theme -> saveThemePreference(theme) },
-                        saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
-                    )
-                } else {
-                    LoginScreen(
-                        onGoogleSignIn = { AuthHelper.signInWithGoogle(this, signInClient, googleSignInLauncher) },
-                        onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(this, auth, email, password) },
-                        onSignUp = { email, password -> AuthHelper.createAccount(this, auth, email, password) },
-                        onForgotPassword = { email -> AuthHelper.resetPassword(this, auth, email) }
-                    )
+                AnimatedContent(targetState = showSplash, transitionSpec = {
+                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(500))
+                }, label = "SplashScreen Animation") { targetState ->
+                    when (targetState) {
+                        true -> SplashScreen()
+                        false -> {
+                            if (isLoggedIn) {
+                                MainContent(
+                                    navController = navController,
+                                    currentRoute = currentRoute,
+                                    sensorData = sensorData,
+                                    actuatorData = actuatorData,
+                                    sensorRangeData = sensorRangeData,
+                                    sensorDataViewModel = sensorDataViewModel,
+                                    actuatorDataViewModel = actuatorDataViewModel,
+                                    sensorRangeDataViewModel = sensorRangeDataViewModel,
+                                    selectedTheme = selectedTheme,
+                                    dynamicColorEnabled = dynamicColorEnabled,
+                                    navigateTo = navigateTo,
+                                    saveThemePreference = { theme -> saveThemePreference(theme) },
+                                    saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
+                                )
+                            } else {
+                                LoginScreen(
+                                    onGoogleSignIn = { AuthHelper.signInWithGoogle(context as Activity, signInClient, googleSignInLauncher) },
+                                    onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(context, auth, email, password) },
+                                    onSignUp = { email, password -> AuthHelper.createAccount(context, auth, email, password) },
+                                    onForgotPassword = { email -> AuthHelper.resetPassword(context, auth, email) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -383,6 +402,7 @@ fun NavRoutes(
             composable(Routes.PREFERENCES_SCREEN) {
                 if (targetRoute == Routes.PREFERENCES_SCREEN) {
                     PreferenceScreen(
+                        navController = navController,
                         currentTheme = selectedTheme,
                         dynamicColorEnabled = dynamicColorEnabled,
                         onThemeChange = onThemeChange,
