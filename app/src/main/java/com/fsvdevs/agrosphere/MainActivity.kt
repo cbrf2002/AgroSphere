@@ -1,9 +1,6 @@
 @file:Suppress("DEPRECATION")
 package com.fsvdevs.agrosphere
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
@@ -11,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
@@ -62,7 +57,9 @@ import com.fsvdevs.agrosphere.ui.NotificationsScreen
 import com.fsvdevs.agrosphere.ui.PreferenceScreen
 import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
+import com.fsvdevs.agrosphere.util.AuthHelper
 import com.fsvdevs.agrosphere.util.NotificationHelper
+import com.fsvdevs.agrosphere.util.NotificationHelper.checkAndRequestNotificationPermission
 import com.fsvdevs.agrosphere.util.PreferencesManager
 import com.fsvdevs.agrosphere.util.checkSensorValuesAndNotify
 import com.fsvdevs.agrosphere.util.getTitleForRoute
@@ -70,7 +67,6 @@ import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
 import com.github.mikephil.charting.utils.Utils
-import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.FirebaseApp
@@ -155,7 +151,7 @@ class MainActivity : ComponentActivity() {
         database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
         firestore = FirebaseFirestore.getInstance()
         preferencesManager = PreferencesManager(this)
-        checkAndRequestNotificationPermission()
+        checkAndRequestNotificationPermission(this, requestNotificationPermissionLauncher)
         NotificationHelper.createNotificationChannel(this)
         Utils.init(this)
 
@@ -266,10 +262,10 @@ class MainActivity : ComponentActivity() {
                     }
                 } else {
                     LoginScreen(
-                        onGoogleSignIn = { signInWithGoogle() },
-                        onEmailSignIn = { email, password -> signInWithEmail(email, password) },
-                        onSignUp = { email, password -> createAccount(email, password) },
-                        onForgotPassword = { email -> resetPassword(email) }
+                        onGoogleSignIn = { AuthHelper.signInWithGoogle(this, signInClient, googleSignInLauncher) },
+                        onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(this, auth, email, password) },
+                        onSignUp = { email, password -> AuthHelper.createAccount(this, auth, email, password) },
+                        onForgotPassword = { email -> AuthHelper.resetPassword(this, auth, email) }
                     )
                 }
             }
@@ -296,91 +292,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         auth.removeAuthStateListener(authStateListener)
-    }
-
-    private fun checkAndRequestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            when {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED -> {
-                    Log.d("MainActivity", "Notification permission already granted")
-                }
-                else -> {
-                    Log.d("MainActivity", "Requesting notification permission")
-                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-        }
-    }
-
-    private fun createAccount(email: String, password: String) {
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    auth.currentUser?.sendEmailVerification()
-                    Log.d(tag, "createUserWithEmail:success")
-                    Toast.makeText(baseContext, "Account created! Please verify your email.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Log.w(tag, "createUserWithEmail:failure", task.exception)
-                    Toast.makeText(baseContext, "Account creation failed.", Toast.LENGTH_SHORT).show()
-                }
-            }
-    }
-
-    private fun signInWithGoogle() {
-        val signInRequest = BeginSignInRequest.builder()
-            .setGoogleIdTokenRequestOptions(
-                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                    .setSupported(true)
-                    .setServerClientId(getString(R.string.default_web_client_id))
-                    .setFilterByAuthorizedAccounts(false)
-                    .build()
-            ).build()
-
-        signInClient.beginSignIn(signInRequest)
-            .addOnSuccessListener { result ->
-                Log.d(tag, "Google One Tap Sign-in successful")
-                Toast.makeText(baseContext, "Google One Tap Sign-in successful", Toast.LENGTH_SHORT).show()
-                val intentSenderRequest = IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
-                googleSignInLauncher.launch(intentSenderRequest)
-            }
-            .addOnFailureListener { e ->
-                Log.e(tag, "Google One Tap Sign-in failed: ${e.message}", e)
-                Toast.makeText(baseContext, "Google One Tap Sign-in failed", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun signInWithEmail(email: String, password: String) {
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    if (auth.currentUser?.isEmailVerified == true) {
-                        Log.d(tag, "signInWithEmail:success")
-                        Toast.makeText(baseContext, "Authentication successful.", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Log.w(tag, "signInWithEmail:email not verified")
-                        Toast.makeText(baseContext, "Please verify your email.", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    Log.w(tag, "signInWithEmail:failure", task.exception)
-                    Toast.makeText(baseContext, "Authentication failed.", Toast.LENGTH_SHORT).show()
-                }
-            }
-    }
-
-    private fun resetPassword(email: String) {
-        auth.sendPasswordResetEmail(email)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    Log.d(tag, "Password reset email sent")
-                    Toast.makeText(baseContext, "Password reset email sent.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Log.e(tag, "Failed to send password reset email", task.exception)
-                    Toast.makeText(baseContext, "Failed to send password reset email.", Toast.LENGTH_SHORT).show()
-                }
-            }
     }
 }
 
