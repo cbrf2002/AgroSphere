@@ -27,7 +27,6 @@ import com.google.firebase.auth.FirebaseAuth
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferenceScreen(
-    navController: NavController,
     currentTheme: AppTheme,
     dynamicColorEnabled: Boolean,
     onThemeChange: (AppTheme) -> Unit,
@@ -54,7 +53,7 @@ fun PreferenceScreen(
         NotificationSettings()
         HorizontalDivider()
 
-        AccountSettings(navController = navController)
+        AccountSettings()
         HorizontalDivider()
 
         AboutUsSection()
@@ -162,7 +161,7 @@ fun NotificationSettings() {
 }
 
 @Composable
-fun AccountSettings(navController: NavController) {
+fun AccountSettings() {
     var showAccountInfo by rememberSaveable { mutableStateOf(false) }
     val auth = FirebaseAuth.getInstance()
     val user = auth.currentUser
@@ -199,10 +198,6 @@ fun AccountSettings(navController: NavController) {
 
     PreferenceItem(label = "Sign Out", onClick = {
         FirebaseAuth.getInstance().signOut()
-        navController.navigate("login") {
-            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-            launchSingleTop = true
-        }
     }) {
         // Optional: Add an icon or additional UI if desired
     }
