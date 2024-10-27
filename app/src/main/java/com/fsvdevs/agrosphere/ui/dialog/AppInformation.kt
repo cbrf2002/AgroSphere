@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -30,16 +35,21 @@ fun AppInformation() {
     val versionName = BuildConfig.VERSION_NAME
     val versionCode = BuildConfig.VERSION_CODE
 
+    var showPrivacyDialog = remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(24.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
+        val scrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppLogoText()
@@ -54,6 +64,19 @@ fun AppInformation() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             AppAuthors()
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(
+                onClick = { showPrivacyDialog.value = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "View Privacy Policy and Terms of Service")
+            }
+
+            if (showPrivacyDialog.value) {
+                PrivacyDialog(
+                    onDismiss = { showPrivacyDialog.value = false }
+                )
+            }
         }
     }
 }
