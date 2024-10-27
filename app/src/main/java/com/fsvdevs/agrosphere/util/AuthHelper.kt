@@ -2,18 +2,44 @@
 package com.fsvdevs.agrosphere.util
 
 import android.app.Activity
+import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import com.fsvdevs.agrosphere.R
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 
 object AuthHelper {
     private const val TAG = "AuthHelper"
+
+    fun handleGoogleSignIn(result: ActivityResult, signInClient: SignInClient, auth: FirebaseAuth, context: Context) {
+        if (result.resultCode == RESULT_OK) {
+            val credential = signInClient.getSignInCredentialFromIntent(result.data)
+            val idToken = credential.googleIdToken
+            idToken?.let {
+                val firebaseCredential = GoogleAuthProvider.getCredential(it, null)
+                auth.signInWithCredential(firebaseCredential)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Log.d(TAG, "Google Sign-in successful")
+                            Toast.makeText(context, "Google Sign-in successful", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Log.e(TAG, "Google Sign-in failed", task.exception)
+                            Toast.makeText(context, "Google Sign-in failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+            }
+        } else {
+            Log.e(TAG, "Google Sign-in canceled")
+            Toast.makeText(context, "Google Sign-in canceled", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     fun createAccount(context: Context, auth: FirebaseAuth, email: String, password: String) {
         auth.createUserWithEmailAndPassword(email, password)
