@@ -198,9 +198,27 @@ class MainActivity : ComponentActivity() {
         auth.addAuthStateListener(authStateListener)
     }
 
+    override fun onPause() {
+        super.onPause()
+        auth.removeAuthStateListener(authStateListener)
+        lastCheckJob?.cancel()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        auth.addAuthStateListener(authStateListener)
+        checkAndRequestNotificationPermission(this, requestNotificationPermissionLauncher)
+    }
+
     override fun onStop() {
         super.onStop()
         auth.removeAuthStateListener(authStateListener)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        auth.removeAuthStateListener(authStateListener)
+        lastCheckJob?.cancel()
     }
 }
 
@@ -225,7 +243,7 @@ private fun MainContent(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         topBar = {
-            if (currentRoute != Routes.LOGIN_SCREEN && currentRoute != Routes.DASHBOARD_SCREEN) {
+            if (currentRoute != Routes.DASHBOARD_SCREEN) {
                 TopAppBar(
                     title = { Text(
                         text = getTitleForRoute(currentRoute),
