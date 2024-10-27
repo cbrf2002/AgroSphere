@@ -1,5 +1,7 @@
 package com.fsvdevs.agrosphere.ui
 
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -15,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -151,11 +154,16 @@ fun DisplaySettings(
 
 @Composable
 fun NotificationSettings() {
+    val context = LocalContext.current
+
     PreferenceHeaders("Notifications")
-    PreferenceItem("Enable Notifications", onClick = {
-        // Handle click event for notifications, e.g., toggle a switch
+    PreferenceItem("Control App Notifications", onClick = {
+        openAppNotificationSettings(context)
     }) {
-        // Add Switch or Checkbox for notifications here if applicable
+        Icon(
+            imageVector = Icons.AutoMirrored.Default.KeyboardArrowRight,
+            contentDescription = "Navigate to Notification Settings"
+        )
     }
 }
 
@@ -221,4 +229,12 @@ fun AboutUsSection() {
             AppInformation()
         }
     }
+}
+
+fun openAppNotificationSettings(context: Context) {
+    val intent = Intent().apply {
+        action = android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
+        putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+    }
+    context.startActivity(intent)
 }
