@@ -149,6 +149,7 @@ fun DashboardControlCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
+            verticalArrangement = Arrangement.Top
         ) {
             ClimateControlSwitch(
                 actuatorData = actuatorData,
