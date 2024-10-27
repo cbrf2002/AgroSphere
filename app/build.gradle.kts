@@ -25,8 +25,8 @@ android {
         minSdk = 29
         //noinspection EditedTargetSdkVersion
         targetSdk = 35
-        versionCode = 142
-        versionName = "0.93"
+        versionCode = 172
+        versionName = "0.97"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.play.services.base)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -90,7 +91,6 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
-    implementation(libs.vico.compose.m3)
     implementation(libs.mpandroidchart)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
