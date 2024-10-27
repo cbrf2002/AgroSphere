@@ -15,7 +15,9 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.with
 import androidx.compose.foundation.layout.fillMaxSize
@@ -173,7 +175,7 @@ class MainActivity : ComponentActivity() {
                 dynamicColorEnabled = dynamicColorEnabled
             ) {
                 AnimatedContent(targetState = showSplash, transitionSpec = {
-                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(500))
+                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(1000))
                 }, label = "SplashScreen Animation") { targetState ->
                     when (targetState) {
                         true -> SplashScreen()
@@ -364,16 +366,35 @@ fun NavRoutes(
     saveThemePreference: (AppTheme) -> Unit,
     saveDynamicColorPreference: (Boolean) -> Unit
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Routes.DASHBOARD_SCREEN
+    val navBackStackEntry by navController.currentBackStackEntryFlow.collectAsState(initial = null)
+    var previousRoute by remember { mutableStateOf(Routes.DASHBOARD_SCREEN) }
+    var currentRoute by remember { mutableStateOf(Routes.DASHBOARD_SCREEN) }
+
+    LaunchedEffect(navBackStackEntry) {
+        previousRoute = currentRoute
+        currentRoute = navBackStackEntry?.destination?.route ?: Routes.DASHBOARD_SCREEN
+    }
 
     AnimatedContent(
         targetState = currentRoute,
         transitionSpec = {
-            fadeIn(animationSpec = tween(400)) with fadeOut(animationSpec = tween(400))
+            val currentPosition = getPosition(previousRoute)
+            val targetPosition = getPosition(currentRoute)
+            val tweenDuration = 300
+            Log.d("MainActivityAnimatedContent", "Previous Position: $currentPosition, Target Position: $targetPosition")
+
+            if (targetPosition > currentPosition) {
+                slideInHorizontally(initialOffsetX = { it }) + fadeIn(animationSpec = tween(tweenDuration)) with
+                        slideOutHorizontally(targetOffsetX = { -it }) + fadeOut(animationSpec = tween(tweenDuration))
+            } else {
+                slideInHorizontally(initialOffsetX = { -it }) + fadeIn(animationSpec = tween(tweenDuration)) with
+                        slideOutHorizontally(targetOffsetX = { it }) + fadeOut(animationSpec = tween(tweenDuration))
+            }
         },
         modifier = modifier, label = ""
     ) { targetRoute ->
+        previousRoute = currentRoute
+        currentRoute = targetRoute
         NavHost(
             navController = navController,
             startDestination = Routes.DASHBOARD_SCREEN
@@ -423,6 +444,17 @@ fun NavRoutes(
             }
         }
     }
+}
+
+val screenOrder = listOf(
+    Routes.DASHBOARD_SCREEN,
+    Routes.MONITOR_SCREEN,
+    Routes.NOTIFICATIONS_SCREEN,
+    Routes.PREFERENCES_SCREEN
+)
+
+fun getPosition(route: String): Int {
+    return screenOrder.indexOf(route)
 }
 
 @Composable
