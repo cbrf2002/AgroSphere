@@ -69,9 +69,11 @@ import com.fsvdevs.agrosphere.util.getTitleForRoute
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
+import com.github.mikephil.charting.utils.Utils
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.auth.api.identity.SignInClient
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.DatabaseReference
@@ -84,7 +86,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-
     private lateinit var auth: FirebaseAuth
     private lateinit var signInClient: SignInClient
     private var isLoggedIn by mutableStateOf(false)
@@ -131,7 +132,7 @@ class MainActivity : ComponentActivity() {
 
     // Instantiate ViewModels using a factory or dependency injection
     private val sensorDataViewModel: SensorDataViewModel by viewModels {
-        SensorDataViewModel.Factory(SensorDataRepository(database))
+        SensorDataViewModel.Factory(SensorDataRepository(database, this))
     }
     private val actuatorDataViewModel: ActuatorDataViewModel by viewModels {
         ActuatorDataViewModel.Factory(ActuatorDataRepository(database))
@@ -148,6 +149,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // Initialize Firebase and other dependencies
+        FirebaseApp.initializeApp(this)
         auth = FirebaseAuth.getInstance()
         signInClient = Identity.getSignInClient(this)
         database = FirebaseDatabase.getInstance(getString(R.string.firebase_reference)).reference
@@ -155,6 +157,7 @@ class MainActivity : ComponentActivity() {
         preferencesManager = PreferencesManager(this)
         checkAndRequestNotificationPermission()
         NotificationHelper.createNotificationChannel(this)
+        Utils.init(this)
 
         // Listen for changes in authentication state
         authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -174,6 +177,7 @@ class MainActivity : ComponentActivity() {
             val sensorData by sensorDataViewModel.sensorData.collectAsState()
             val actuatorData by actuatorDataViewModel.actuatorData.collectAsState()
             val sensorRangeData by sensorRangeDataViewModel.sensorRangeData.collectAsState()
+
             val context = LocalContext.current
 
             LaunchedEffect(Unit) {
@@ -236,10 +240,6 @@ class MainActivity : ComponentActivity() {
                         }
                     ) { paddingValues ->
                         NavRoutes(
-                            onGoogleSignIn = { signInWithGoogle() },
-                            onEmailSignIn = { email, password -> signInWithEmail(email, password) },
-                            onSignUp = { email, password -> createAccount(email, password) },
-                            onForgotPassword = { email -> resetPassword(email) },
                             sensorData = sensorData,
                             actuatorData = actuatorData,
                             sensorRangeData = sensorRangeData,
@@ -386,10 +386,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NavRoutes(
-    onGoogleSignIn: () -> Unit,
-    onEmailSignIn: (String, String) -> Unit,
-    onSignUp: (String, String) -> Unit,
-    onForgotPassword: (String) -> Unit,
     sensorData: SensorData?,
     actuatorData: ActuatorData?,
     sensorRangeData: SensorRangeData?,
@@ -423,7 +419,6 @@ fun NavRoutes(
         ) }
         composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen() }
         composable(Routes.PREFERENCES_SCREEN) { PreferenceScreen(
-            navController = navController,
             currentTheme = selectedTheme,
             dynamicColorEnabled = dynamicColorEnabled,
             onThemeChange = onThemeChange,
@@ -431,14 +426,6 @@ fun NavRoutes(
             saveThemePreference = saveThemePreference,
             saveDynamicColorPreference = saveDynamicColorPreference
         ) }
-        composable(Routes.LOGIN_SCREEN) {
-            LoginScreen(
-                onGoogleSignIn = onGoogleSignIn,
-                onEmailSignIn = onEmailSignIn,
-                onSignUp = onSignUp,
-                onForgotPassword = onForgotPassword
-            )
-        }
     }
 
     LaunchedEffect(navigateTo) {
