@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -23,6 +24,7 @@ import com.fsvdevs.agrosphere.models.SensorData
 import com.fsvdevs.agrosphere.models.SensorRangeData
 import com.fsvdevs.agrosphere.ui.dialog.PresetSelection
 import com.fsvdevs.agrosphere.viewmodel.ActuatorDataViewModel
+import com.fsvdevs.agrosphere.viewmodel.SensorDataViewModel
 import com.fsvdevs.agrosphere.viewmodel.SensorRangeDataViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -51,7 +53,13 @@ fun DashboardScreen(
     val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
     val currentDate = sdf.format(Date())
 
+    val isLoading = remember { mutableStateOf(true) }
+
     LaunchedEffect(sensorData, actuatorData, sensorRangeData) {
+        if (!isLoadingSensor && !isLoadingActuator) {
+            isLoading.value = false
+        }
+
         sensorRangeData?.let {
             if (it.preset == "Manual Range") {
                 tempRange.value = it.tempRangeLow.toFloat()..it.tempRangeHigh.toFloat()
@@ -79,8 +87,7 @@ fun DashboardScreen(
 
         SensorDisplay(
             sensorData = sensorData,
-            isLoadingSensor = isLoadingSensor,
-            isLoadingActuator = isLoadingActuator
+            isLoading = isLoading
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -109,13 +116,13 @@ fun DashboardHeader(
         Text(
             text = currentDate,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.W500,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = "Dashboard",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.W700,
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
         )
     }
@@ -159,7 +166,7 @@ fun DashboardControlCard(
 
             Text(
                 text = "Actuator Controls",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W700),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.W700),
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -191,8 +198,7 @@ fun DashboardControlCard(
 @Composable
 fun SensorDisplay(
     sensorData: SensorData?,
-    isLoadingSensor: Boolean,
-    isLoadingActuator: Boolean
+    isLoading: MutableState<Boolean>
 ) {
     Column(
         modifier = Modifier
@@ -200,7 +206,7 @@ fun SensorDisplay(
             .padding(16.dp)
             .systemBarsPadding()
     ) {
-        if (isLoadingSensor || isLoadingActuator) {
+        if (isLoading.value) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -406,7 +412,7 @@ fun ClimateControlSwitch(
     ) {
         Text(
             text = "Automatic Climate Control Mode",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.W700
         )
@@ -439,7 +445,7 @@ fun ClimateRangeSliders(
     ) {
         Text(
             text = "Climate Ranges",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.W700
         )
@@ -457,7 +463,7 @@ fun ClimateRangeSliders(
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Temperature: ${tempRange.value.start.roundToOneDecimal()}°C - ${tempRange.value.endInclusive.roundToOneDecimal()}°C",
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
         RangeSlider(
@@ -485,7 +491,7 @@ fun ClimateRangeSliders(
 
         Text(
             text = "Humidity: ${humRange.value.start.roundToOneDecimal()}% - ${humRange.value.endInclusive.roundToOneDecimal()}%",
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
         RangeSlider(
