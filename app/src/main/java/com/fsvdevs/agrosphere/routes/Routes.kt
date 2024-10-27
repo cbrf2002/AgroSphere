@@ -5,5 +5,4 @@ object Routes {
     const val MONITOR_SCREEN = "monitor"
     const val NOTIFICATIONS_SCREEN = "notifications"
     const val PREFERENCES_SCREEN = "preferences"
-    const val LOGIN_SCREEN = "login"
 }
