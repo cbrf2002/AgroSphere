@@ -45,7 +45,6 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.utils.MPPointF
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,10 +60,6 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     // Fetch sensor data when the tab index changes
     LaunchedEffect(selectedTabIndex.intValue) {
         sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
-        while(true) {
-            sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
-            delay(120000) // Fetch every 2 minutes
-        }
     }
 
     Column(
@@ -84,8 +79,7 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Sensor Data Monitoring",
-                style = MaterialTheme.typography.titleLarge.copy(),
-                fontWeight = FontWeight.Black,
+                style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxWidth(),
@@ -103,7 +97,7 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
                         onClick = {
                             selectedTabIndex.intValue = index
                             sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[index])
-                                  },
+                        },
                         text = { Text(range) }
                     )
                 }
@@ -240,11 +234,6 @@ fun SensorChart(
             update = { chart ->
                 // Update the chart with new data and invalidate it
                 chart.data = lineData
-                chart.xAxis.valueFormatter = object : ValueFormatter() {
-                    override fun getAxisLabel(value: Float, axis: AxisBase?): String {
-                        return formatTimestamp(value, timeRange, firstTimestamp)
-                    }
-                }
                 chart.notifyDataSetChanged() // Update the chart
                 chart.invalidate() // Redraw the chart
             }
