@@ -1,32 +1,18 @@
 package com.fsvdevs.agrosphere.util
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import com.fsvdevs.agrosphere.R
 
 @Composable
-fun TextLogo() {
-    val text = buildAnnotatedString {
-        withStyle(
-            style = SpanStyle(
-                color = MaterialTheme.colorScheme.secondary,
-                fontSize = MaterialTheme.typography.displaySmall.fontSize
-            )
-        ) {
-            append("AGRO")
-        }
-        withStyle(style = SpanStyle(
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Black,
-            fontSize = MaterialTheme.typography.displaySmall.fontSize)
-        ) {
-            append("SPHERE")
-        }
-    }
-
-    Text(text = text)
+fun TextLogo(
+    modifier: Modifier
+) {
+    Image(
+        painter = painterResource(R.drawable.agrosphere_logowithtext),
+        contentDescription = "AgroSphere Logo Text",
+        modifier = modifier
+    )
 }
