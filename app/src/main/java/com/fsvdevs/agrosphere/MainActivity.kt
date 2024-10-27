@@ -8,6 +8,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.with
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -243,12 +252,22 @@ private fun MainContent(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         topBar = {
-            if (currentRoute != Routes.DASHBOARD_SCREEN) {
+            AnimatedVisibility(
+                visible = currentRoute != Routes.DASHBOARD_SCREEN,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300)) + slideInVertically(
+                    animationSpec = tween(durationMillis = 300)
+                ),
+                exit = fadeOut(animationSpec = tween(durationMillis = 300)) + slideOutVertically(
+                    animationSpec = tween(durationMillis = 300)
+                )
+            ) {
                 TopAppBar(
-                    title = { Text(
-                        text = getTitleForRoute(currentRoute),
-                        style = MaterialTheme.typography.headlineMedium
-                    ) },
+                    title = {
+                        Text(
+                            text = getTitleForRoute(currentRoute),
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -307,6 +326,7 @@ private fun MainContent(
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun NavRoutes(
     sensorData: SensorData?,
@@ -325,30 +345,54 @@ fun NavRoutes(
     saveThemePreference: (AppTheme) -> Unit,
     saveDynamicColorPreference: (Boolean) -> Unit
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = Routes.DASHBOARD_SCREEN,
-        modifier = modifier
-    ) {
-        composable(Routes.DASHBOARD_SCREEN) { DashboardScreen(
-            sensorData = sensorData,
-            actuatorData = actuatorData,
-            sensorRangeData = sensorRangeData,
-            actuatorDataViewModel = actuatorDataViewModel,
-            sensorRangeDataViewModel = sensorRangeDataViewModel
-        ) }
-        composable(Routes.MONITOR_SCREEN) { MonitorScreen(
-            sensorDataViewModel
-        ) }
-        composable(Routes.NOTIFICATIONS_SCREEN) { NotificationsScreen() }
-        composable(Routes.PREFERENCES_SCREEN) { PreferenceScreen(
-            currentTheme = selectedTheme,
-            dynamicColorEnabled = dynamicColorEnabled,
-            onThemeChange = onThemeChange,
-            onDynamicColorChange = onDynamicColorChange,
-            saveThemePreference = saveThemePreference,
-            saveDynamicColorPreference = saveDynamicColorPreference
-        ) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: Routes.DASHBOARD_SCREEN
+
+    AnimatedContent(
+        targetState = currentRoute,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(400)) with fadeOut(animationSpec = tween(400))
+        },
+        modifier = modifier, label = ""
+    ) { targetRoute ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.DASHBOARD_SCREEN
+        ) {
+            composable(Routes.DASHBOARD_SCREEN) {
+                if (targetRoute == Routes.DASHBOARD_SCREEN) {
+                    DashboardScreen(
+                        sensorData = sensorData,
+                        actuatorData = actuatorData,
+                        sensorRangeData = sensorRangeData,
+                        actuatorDataViewModel = actuatorDataViewModel,
+                        sensorRangeDataViewModel = sensorRangeDataViewModel
+                    )
+                }
+            }
+            composable(Routes.MONITOR_SCREEN) {
+                if (targetRoute == Routes.MONITOR_SCREEN) {
+                    MonitorScreen(sensorDataViewModel)
+                }
+            }
+            composable(Routes.NOTIFICATIONS_SCREEN) {
+                if (targetRoute == Routes.NOTIFICATIONS_SCREEN) {
+                    NotificationsScreen()
+                }
+            }
+            composable(Routes.PREFERENCES_SCREEN) {
+                if (targetRoute == Routes.PREFERENCES_SCREEN) {
+                    PreferenceScreen(
+                        currentTheme = selectedTheme,
+                        dynamicColorEnabled = dynamicColorEnabled,
+                        onThemeChange = onThemeChange,
+                        onDynamicColorChange = onDynamicColorChange,
+                        saveThemePreference = saveThemePreference,
+                        saveDynamicColorPreference = saveDynamicColorPreference
+                    )
+                }
+            }
+        }
     }
 
     LaunchedEffect(navigateTo) {
