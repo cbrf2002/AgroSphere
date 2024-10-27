@@ -3,6 +3,7 @@ package com.fsvdevs.agrosphere.ui
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -60,6 +62,8 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val passwordFocusRequester = remember { FocusRequester() }
     var showTermsDialog = remember { mutableStateOf(false) }
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val logoSize = screenWidth * 0.4f
 
     Column(
         modifier = Modifier
@@ -78,16 +82,8 @@ fun LoginScreen(
                     .animateContentSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.agrosphere),
-                    modifier = Modifier.height(100.dp),
-                    contentDescription = "AgroSphere Logo"
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                TextLogo()
-
+                TextLogo(modifier = Modifier.size(logoSize))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "IoT-Based Automated Greenhouse\nMonitoring System",
                     fontSize = MaterialTheme.typography.bodyLarge.fontSize,
