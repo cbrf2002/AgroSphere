@@ -30,6 +30,12 @@ object NotificationHelper {
     private var notificationIdCounter = 1
     private var lastSummaryNotificationTime: Long = 0
 
+    fun requestNotificationPermission(launcher: ActivityResultLauncher<String>) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     fun checkAndRequestNotificationPermission(
         activity: Activity,
         requestPermissionLauncher: ActivityResultLauncher<String>
