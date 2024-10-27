@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -28,6 +29,26 @@ object NotificationHelper {
     private const val NOTIFICATION_GROUP_KEY = "sensor_alerts_group"
     private var notificationIdCounter = 1
     private var lastSummaryNotificationTime: Long = 0
+
+    fun checkAndRequestNotificationPermission(
+        activity: Activity,
+        requestPermissionLauncher: ActivityResultLauncher<String>
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    activity,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Log.d("NotificationHelper", "Notification permission already granted")
+                }
+                else -> {
+                    Log.d("NotificationHelper", "Requesting notification permission")
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
 
     fun createNotificationChannel(context: Context) {
         val importance = NotificationManager.IMPORTANCE_DEFAULT
