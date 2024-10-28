@@ -27,7 +27,7 @@ fun SplashScreen() {
         verticalArrangement = Arrangement.Center
     ) {
         val splashWidth = LocalConfiguration.current.screenWidthDp.dp
-        val logoSize = splashWidth * 0.4f
+        val logoSize = splashWidth * 0.6f
 
         TextLogo(modifier = Modifier.size(logoSize))
 
