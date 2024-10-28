@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
@@ -27,11 +28,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.fsvdevs.agrosphere.util.DensityHelper.getScaledDensity
 
 @Composable
 fun PresetSelection(
@@ -60,114 +63,143 @@ fun PresetSelection(
         selectedPresetIndex.intValue = presets.indexOfFirst { it.first == currentPreset.value }
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-            Text(
-                text = "Presets",
-                style = MaterialTheme.typography.headlineSmall
+    CompositionLocalProvider(LocalDensity provides getScaledDensity()) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            PresetInterface(
+                onPresetSelected = onPresetSelected,
+                onDismiss = onDismiss,
+                currentTempRange = currentTempRange,
+                currentHumRange = currentHumRange,
+                currentPreset = currentPreset,
+                presets = presets,
+                selectedPresetIndex = selectedPresetIndex,
+                previousTempRange = previousTempRange,
+                previousHumRange = previousHumRange,
+                previousPreset = previousPreset
             )
-            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
 
-            Text(
-                text = buildAnnotatedString {
-                    append("Select a growth phase preset or specific plant type to automatically adjust temperature and ")
-                    append("humidity ranges, or choose ")
-                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                        append("Manual Range")
-                    }
-                    append(" to set your own custom values.")
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+@Composable
+fun PresetInterface(
+    onPresetSelected: (ClosedFloatingPointRange<Float>, ClosedFloatingPointRange<Float>, String) -> Unit,
+    onDismiss: () -> Unit,
+    currentTempRange: MutableState<ClosedFloatingPointRange<Float>>,
+    currentHumRange: MutableState<ClosedFloatingPointRange<Float>>,
+    currentPreset: MutableState<String>,
+    presets: List<Pair<String, Pair<ClosedFloatingPointRange<Float>, ClosedFloatingPointRange<Float>>>>,
+    selectedPresetIndex: MutableState<Int>,
+    previousTempRange: MutableState<ClosedFloatingPointRange<Float>>,
+    previousHumRange: MutableState<ClosedFloatingPointRange<Float>>,
+    previousPreset: MutableState<String>
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+        Text(
+            text = "Presets",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = buildAnnotatedString {
+                append("Select a growth phase preset or specific plant type to automatically adjust temperature and ")
+                append("humidity ranges, or choose ")
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                    append("Manual Range")
+                }
+                append(" to set your own custom values.")
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-            LazyColumn {
-                itemsIndexed(presets) { index, (name, range) ->
-                    Row(
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LazyColumn {
+            itemsIndexed(presets) { index, (name, range) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            selectedPresetIndex.value = index
+                            previousTempRange.value = currentTempRange.value // Store previous temp range
+                            previousHumRange.value = currentHumRange.value // Store previous humidity range
+                            previousPreset.value = currentPreset.value // Store previous preset name
+
+                            if (name == "Manual Range") {
+                                // Use previous values if they exist, otherwise use default
+                                currentTempRange.value = previousTempRange.value
+                                currentHumRange.value = previousHumRange.value
+                            } else {
+                                val (tempRange, humRange) = range
+                                currentTempRange.value = tempRange
+                                currentHumRange.value = humRange
+                            }
+
+                            currentPreset.value = name // Update current preset state
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable {
-                                selectedPresetIndex.intValue = index
-                                previousTempRange.value = currentTempRange.value // Store previous temp range
-                                previousHumRange.value = currentHumRange.value // Store previous humidity range
-                                previousPreset.value = currentPreset.value // Store previous preset name
-
-                                if (name == "Manual Range") {
-                                    // Use previous values if they exist, otherwise use default
-                                    currentTempRange.value = previousTempRange.value
-                                    currentHumRange.value = previousHumRange.value
-                                } else {
-                                    val (tempRange, humRange) = range
-                                    currentTempRange.value = tempRange
-                                    currentHumRange.value = humRange
-                                }
-
-                                currentPreset.value = name // Update current preset state
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .padding(bottom = 8.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(bottom = 8.dp),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.Start
-                        ) {
+                        Text(
+                            text = name,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        if (name != "Manual Range") {
                             Text(
-                                text = name,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                text = "${range.first.start}-${range.first.endInclusive}°C, ${range.second.start}-${range.second.endInclusive}%",
+                                color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.bodyLarge
                             )
-                            if (name != "Manual Range") {
-                                Text(
-                                    text = "${range.first.start}-${range.first.endInclusive}°C, ${range.second.start}-${range.second.endInclusive}%",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
                         }
-                        RadioButton(
-                            selected = selectedPresetIndex.intValue == index,
-                            onClick = null // RadioButton click is handled by the row
-                        )
                     }
+                    RadioButton(
+                        selected = selectedPresetIndex.value == index,
+                        onClick = null // RadioButton click is handled by the row
+                    )
                 }
             }
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = {
+                    onPresetSelected(currentTempRange.value, currentHumRange.value, currentPreset.value)
+                },
+                modifier = Modifier.wrapContentWidth().padding(end = 8.dp)
             ) {
-                Button(
-                    onClick = {
-                        onPresetSelected(currentTempRange.value, currentHumRange.value, currentPreset.value)
-                    },
-                    modifier = Modifier.wrapContentWidth().padding(end = 8.dp)
-                ) {
-                    Text(text = "Save")
-                }
-                OutlinedButton(
-                    onClick = {
-                        // Revert to previous values
-                        currentTempRange.value = previousTempRange.value
-                        currentHumRange.value = previousHumRange.value
-                        currentPreset.value = previousPreset.value
-                        selectedPresetIndex.intValue = presets.indexOfFirst { it.first == previousPreset.value }
-                        onDismiss()  // Close the dialog
-                    },
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Text(text = "Cancel")
-                }
+                Text(text = "Save")
+            }
+            OutlinedButton(
+                onClick = {
+                    // Revert to previous values
+                    currentTempRange.value = previousTempRange.value
+                    currentHumRange.value = previousHumRange.value
+                    currentPreset.value = previousPreset.value
+                    selectedPresetIndex.value = presets.indexOfFirst { it.first == previousPreset.value }
+                    onDismiss()  // Close the dialog
+                },
+                modifier = Modifier.wrapContentWidth()
+            ) {
+                Text(text = "Cancel")
             }
         }
     }
