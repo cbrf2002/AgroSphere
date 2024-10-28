@@ -15,69 +15,74 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.fsvdevs.agrosphere.R
+import com.fsvdevs.agrosphere.util.DensityHelper.getScaledDensity
 
 @Composable
 fun PrivacyDialog(
     onDismiss: () -> Unit
 ) {
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    CompositionLocalProvider(LocalDensity provides getScaledDensity()) {
+        Dialog(
+            onDismissRequest = onDismiss
         ) {
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
-                val scrollState = rememberScrollState()
-
-                // Scrollable content section
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(scrollState),
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = stringResource(R.string.privacy_policy_and_tos_title),
-                        style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center,
-                    )
+                    val scrollState = rememberScrollState()
+
+                    // Scrollable content section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(scrollState),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.privacy_policy_and_tos_title),
+                            style = MaterialTheme.typography.headlineMedium,
+                            textAlign = TextAlign.Center,
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        HorizontalDivider()
+                        TermsOfServiceScreen()
+                        HorizontalDivider()
+                        PrivacyPolicyScreen()
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    HorizontalDivider()
-                    TermsOfServiceScreen()
-                    HorizontalDivider()
-                    PrivacyPolicyScreen()
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dismiss button
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                ) {
-                    Text("Go back")
+                    // Dismiss button
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Text("Go back")
+                    }
                 }
             }
         }
