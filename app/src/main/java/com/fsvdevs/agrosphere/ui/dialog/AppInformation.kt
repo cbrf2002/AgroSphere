@@ -72,7 +72,7 @@ fun AppInformation() {
                     onClick = { showPrivacyDialog.value = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = "View Privacy Policy and Terms of Service")
+                    Text(text = "View Privacy Policy and Terms of Service", textAlign = TextAlign.Center)
                 }
 
                 if (showPrivacyDialog.value) {
@@ -125,8 +125,7 @@ fun AppAuthors() {
             roles = listOf(
                 "Project Lead",
                 "Software Lead",
-                "Database and Communication Protocols",
-                "Paper"
+                "Database and Communication Protocols"
             )
         )
 
