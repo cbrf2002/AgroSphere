@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
@@ -67,6 +69,7 @@ import com.fsvdevs.agrosphere.ui.theme.AgroSphereTheme
 import com.fsvdevs.agrosphere.ui.theme.AppTheme
 import com.fsvdevs.agrosphere.util.AuthHelper
 import com.fsvdevs.agrosphere.util.AuthHelper.handleGoogleSignIn
+import com.fsvdevs.agrosphere.util.DensityHelper.getScaledDensity
 import com.fsvdevs.agrosphere.util.FirebaseHelper
 import com.fsvdevs.agrosphere.util.FirebaseHelper.auth
 import com.fsvdevs.agrosphere.util.FirebaseHelper.signInClient
@@ -175,39 +178,41 @@ class MainActivity : ComponentActivity() {
                 showSplash = false
             }
 
-            AgroSphereTheme(
-                appTheme = selectedTheme,
-                dynamicColorEnabled = dynamicColorEnabled
-            ) {
-                AnimatedContent(targetState = showSplash, transitionSpec = {
-                    fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(1000))
-                }, label = "SplashScreen Animation") { targetState ->
-                    when (targetState) {
-                        true -> SplashScreen()
-                        false -> {
-                            if (isLoggedIn) {
-                                MainContent(
-                                    navController = navController,
-                                    currentRoute = currentRoute,
-                                    sensorData = sensorData,
-                                    actuatorData = actuatorData,
-                                    sensorRangeData = sensorRangeData,
-                                    sensorDataViewModel = sensorDataViewModel,
-                                    actuatorDataViewModel = actuatorDataViewModel,
-                                    sensorRangeDataViewModel = sensorRangeDataViewModel,
-                                    selectedTheme = selectedTheme,
-                                    dynamicColorEnabled = dynamicColorEnabled,
-                                    navigateTo = navigateTo,
-                                    saveThemePreference = { theme -> saveThemePreference(theme) },
-                                    saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
-                                )
-                            } else {
-                                LoginScreen(
-                                    onGoogleSignIn = { AuthHelper.signInWithGoogle(context as Activity, signInClient, googleSignInLauncher) },
-                                    onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(context, auth, email, password) },
-                                    onSignUp = { email, password -> AuthHelper.createAccount(context, auth, email, password) },
-                                    onForgotPassword = { email -> AuthHelper.resetPassword(context, auth, email) }
-                                )
+            CompositionLocalProvider(LocalDensity provides getScaledDensity()) {
+                AgroSphereTheme(
+                    appTheme = selectedTheme,
+                    dynamicColorEnabled = dynamicColorEnabled
+                ) {
+                    AnimatedContent(targetState = showSplash, transitionSpec = {
+                        fadeIn(animationSpec = tween(500)) with fadeOut(animationSpec = tween(1000))
+                    }, label = "SplashScreen Animation") { targetState ->
+                        when (targetState) {
+                            true -> SplashScreen()
+                            false -> {
+                                if (isLoggedIn) {
+                                    MainContent(
+                                        navController = navController,
+                                        currentRoute = currentRoute,
+                                        sensorData = sensorData,
+                                        actuatorData = actuatorData,
+                                        sensorRangeData = sensorRangeData,
+                                        sensorDataViewModel = sensorDataViewModel,
+                                        actuatorDataViewModel = actuatorDataViewModel,
+                                        sensorRangeDataViewModel = sensorRangeDataViewModel,
+                                        selectedTheme = selectedTheme,
+                                        dynamicColorEnabled = dynamicColorEnabled,
+                                        navigateTo = navigateTo,
+                                        saveThemePreference = { theme -> saveThemePreference(theme) },
+                                        saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
+                                    )
+                                } else {
+                                    LoginScreen(
+                                        onGoogleSignIn = { AuthHelper.signInWithGoogle(context as Activity, signInClient, googleSignInLauncher) },
+                                        onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(context, auth, email, password) },
+                                        onSignUp = { email, password -> AuthHelper.createAccount(context, auth, email, password) },
+                                        onForgotPassword = { email -> AuthHelper.resetPassword(context, auth, email) }
+                                    )
+                                }
                             }
                         }
                     }
