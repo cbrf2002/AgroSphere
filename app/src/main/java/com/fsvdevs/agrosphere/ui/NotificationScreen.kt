@@ -117,13 +117,13 @@ fun NotificationCardDisplay(
                     text = "Historical Notifications",
                     style = MaterialTheme.typography.titleLarge.copy(),
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.wrapContentWidth(),
+                    modifier = Modifier.weight(.5f),
                     textAlign = TextAlign.Left
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(modifier = Modifier.weight(.2f))
                 OutlinedButton(
                     onClick = { showDeleteConfirmation.value = true },
-                    modifier = Modifier.wrapContentWidth()
+                    modifier = Modifier.weight(.4f).wrapContentWidth()
                 ) {
                     Text(
                         text = "Delete All Notifications",
