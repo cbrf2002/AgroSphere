@@ -62,12 +62,12 @@ class SensorDataRepository(
         }
 
         private fun isCompleteSensorData(sensorData: SensorData): Boolean { // Ensure that all sensor fields have meaningful values
-            return sensorData.humidity != 0.0 &&
-                    sensorData.lightLevel != 0.0 &&
-                    sensorData.pH != 0.0 &&
-                    sensorData.temperature != 0.0 &&
-                    sensorData.waterLevel != 0.0 &&
-                    sensorData.waterTemp != 0.0
+            return sensorData.humidity > 0.0 &&
+                    sensorData.lightLevel > 0.0 &&
+                    sensorData.pH > 0.0 &&
+                    sensorData.temperature > 0.0 &&
+                    sensorData.waterLevel > 0.0 &&
+                    sensorData.waterTemp > 0.0
         }
 
         override fun onCancelled(error: DatabaseError) { // Handle errors
