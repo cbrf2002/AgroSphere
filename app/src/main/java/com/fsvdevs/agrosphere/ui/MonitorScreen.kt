@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,6 +45,7 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.utils.MPPointF
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -59,6 +61,13 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     // Fetch sensor data when the tab index changes
     LaunchedEffect(selectedTabIndex.intValue) {
         sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000000) // Delay for 10 minutes
+            sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+        }
     }
 
     Column(
@@ -153,6 +162,28 @@ fun SensorChart(
     valueMapper: (SensorData) -> Double,
     timeRange: String
 ) {
+    val maxFontScale = 10f
+    val minFontScale = 2f
+    val maxUiScale = 3f
+    val minUiScale = 1.5f
+
+    val context = LocalContext.current
+    val currentDensity = LocalDensity.current
+
+    // Adjust font scale within min and max bounds
+    val adjustedFontScale = when {
+        currentDensity.fontScale > maxFontScale -> maxFontScale
+        currentDensity.fontScale < minFontScale -> minFontScale
+        else -> currentDensity.fontScale
+    }
+
+    // Adjust UI density within min and max bounds
+    val adjustedDensity = when {
+        currentDensity.density > maxUiScale -> maxUiScale
+        currentDensity.density < minUiScale -> minUiScale
+        else -> currentDensity.density
+    }
+
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
@@ -177,7 +208,6 @@ fun SensorChart(
     }
 
     val lineData = LineData(lineDataSet)
-    val context = LocalContext.current
 
     val textColorOnSurface = MaterialTheme.colorScheme.onSurface.toArgb()
     val textColorOutline = MaterialTheme.colorScheme.outline.toArgb()
@@ -207,11 +237,13 @@ fun SensorChart(
                 textColor = textColorOnSurface
                 axisLineColor = textColorOnSurface
                 gridColor = textColorOutline
+                textSize = adjustedFontScale * 5f
             }
             axisLeft.apply {
                 textColor = textColorOnSurface
                 axisLineColor = textColorOnSurface
                 gridColor = textColorOutline
+                textSize = adjustedFontScale * 5f
             }
             axisRight.isEnabled = false
             legend.isEnabled = false
@@ -221,7 +253,7 @@ fun SensorChart(
             setScaleEnabled(true)
             setPinchZoom(true)
 
-            val markerView = CustomMarkerView(context) // Create a custom marker view
+            val markerView = CustomMarkerView(context, adjustedDensity) // Create a custom marker view
             marker = markerView
         }
     }
@@ -231,10 +263,21 @@ fun SensorChart(
             factory = { lineChart },
             modifier = Modifier.fillMaxSize(),
             update = { chart ->
-                // Update the chart with new data and invalidate it
-                chart.data = lineData
-                chart.notifyDataSetChanged() // Update the chart
-                chart.invalidate() // Redraw the chart
+                chart.xAxis.valueFormatter = object : ValueFormatter() {
+                    override fun getAxisLabel(value: Float, axis: AxisBase?): String {
+                        return formatTimestamp(value, timeRange, firstTimestamp)
+                    }
+                }
+                chart.xAxis.granularity = when (timeRange) {
+                    "Hour" -> 600f
+                    "Day" -> 3600f
+                    "Week" -> 86400f
+                    "Month" -> 86400f
+                    "Year" -> 2592000f
+                    else -> 600f
+                }
+                chart.notifyDataSetChanged()
+                chart.invalidate()
             }
         )
     }
@@ -242,21 +285,26 @@ fun SensorChart(
 
 // Format timestamp for the X-axis
 private fun formatTimestamp(timestamp: Float, timeRange: String, firstTimestamp: Long): String {
-    val sdf = when (timeRange) { // Create a SimpleDateFormat based on the time range
+    val sdf = when (timeRange) {
         "Hour" -> SimpleDateFormat("HH:mm", Locale.getDefault())
-        "Day" -> SimpleDateFormat("MMM dd HH:mm", Locale.getDefault())
+        "Day" -> SimpleDateFormat("HH:mm", Locale.getDefault())
         "Week" -> SimpleDateFormat("MMM dd", Locale.getDefault())
         "Month" -> SimpleDateFormat("MMM dd", Locale.getDefault())
         "Year" -> SimpleDateFormat("MMM yyyy", Locale.getDefault())
         else -> SimpleDateFormat("MMM dd", Locale.getDefault())
     }
-    return sdf.format(Date((firstTimestamp + timestamp.toLong() * 1000))) // Convert to milliseconds
+    return sdf.format(Date((firstTimestamp + timestamp.toLong() * 1000)))
 }
 
 // Custom marker view for point interactions
 class CustomMarkerView(context: Context) : com.github.mikephil.charting.components.MarkerView(context, R.layout.custom_marker_view) {
 
     private val tvContent: TextView = findViewById(R.id.tvContent)
+    private var scaledDensity: Float = context.resources.displayMetrics.density
+
+    constructor(context: Context, scaledDensity: Float) : this(context) {
+        this.scaledDensity = scaledDensity
+    }
 
     override fun refreshContent(e: Entry?, highlight: com.github.mikephil.charting.highlight.Highlight?) {
         tvContent.text = String.format(Locale.getDefault(), "%.2f", e?.y ?: 0f)  // Set the value to display
