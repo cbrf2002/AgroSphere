@@ -16,17 +16,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fsvdevs.agrosphere.BuildConfig
 import com.fsvdevs.agrosphere.util.ContentText
+import com.fsvdevs.agrosphere.util.DensityHelper.getScaledDensity
 import com.fsvdevs.agrosphere.util.TextLogo
 
 @Composable
@@ -36,45 +39,47 @@ fun AppInformation() {
 
     var showPrivacyDialog = remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        val scrollState = rememberScrollState()
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(24.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+    CompositionLocalProvider(LocalDensity provides getScaledDensity()) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
         ) {
-            AppLogoText()
-            ContentText("Version $versionName ($versionCode)")
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "For the Capstone research entitled:\n\"Implementation of IoT-Based Automated Greenhouse Monitoring System with Internal Climate Control to a Hydroponic Greenhouse in Sampaloc II, Dasmariñas, Cavite\"",
-                style = MaterialTheme.typography.bodySmall,
-                fontStyle = FontStyle.Italic,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            AppAuthors()
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(
-                onClick = { showPrivacyDialog.value = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = "View Privacy Policy and Terms of Service")
-            }
+            val scrollState = rememberScrollState()
 
-            if (showPrivacyDialog.value) {
-                PrivacyDialog(
-                    onDismiss = { showPrivacyDialog.value = false }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(24.dp)
+                    .verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AppLogoText()
+                ContentText("Version $versionName ($versionCode)")
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "For the Capstone research entitled:\n\"Implementation of IoT-Based Automated Greenhouse Monitoring System with Internal Climate Control to a Hydroponic Greenhouse in Sampaloc II, Dasmariñas, Cavite\"",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                AppAuthors()
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = { showPrivacyDialog.value = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "View Privacy Policy and Terms of Service")
+                }
+
+                if (showPrivacyDialog.value) {
+                    PrivacyDialog(
+                        onDismiss = { showPrivacyDialog.value = false }
+                    )
+                }
             }
         }
     }
@@ -83,7 +88,7 @@ fun AppInformation() {
 @Composable
 fun AppLogoText() {
     val dialogWidth = LocalConfiguration.current.screenWidthDp.dp
-    val logoSize = dialogWidth * 0.4f
+    val logoSize = dialogWidth * 0.6f
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
