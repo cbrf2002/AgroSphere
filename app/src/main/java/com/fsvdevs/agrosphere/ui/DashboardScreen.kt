@@ -212,6 +212,7 @@ fun SensorDisplay(
             Log.d("DashboardScreen", "Showing progress while loading data")
         } else {
             sensorData?.let { data ->
+                var waterLevelStatus = if (data.waterLevel == true) "Sufficient" else "Insufficient"
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -252,7 +253,7 @@ fun SensorDisplay(
                         SensorRow(
                             iconResId = R.drawable.rounded_water_24,
                             contentDescription = "Water Level",
-                            value = "${data.waterLevel} cm",
+                            value = waterLevelStatus,
                             label = "Water Level"
                         )
                         SensorRow(
