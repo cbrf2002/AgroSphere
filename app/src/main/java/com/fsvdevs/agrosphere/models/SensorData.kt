@@ -7,7 +7,7 @@ data class SensorData(
     var pH: Double = 0.0,
     var temperature: Double = 0.0,
     var timestamp: Long = 0L,
-    var waterLevel: Double = 0.0,
+    var waterLevel: Boolean = false,
     var waterTemp: Double = 0.0,
     var tds: Double = 0.0
 )
