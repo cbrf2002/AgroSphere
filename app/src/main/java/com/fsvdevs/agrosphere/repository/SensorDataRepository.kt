@@ -37,6 +37,19 @@ class SensorDataRepository(
     private val _sensorData = MutableStateFlow<SensorData?>(null)
     val sensorData: StateFlow<SensorData?> = _sensorData
 
+    private fun sensorDataToFirestoreMap(sensorData: SensorData): Map<String, Any> {
+        return mapOf(
+            "carbonDioxide" to sensorData.carbonDioxide,
+            "humidity" to sensorData.humidity,
+            "lightLevel" to sensorData.lightLevel,
+            "pH" to sensorData.pH,
+            "temperature" to sensorData.temperature,
+            "timestamp" to sensorData.timestamp,
+            "waterTemp" to sensorData.waterTemp,
+            "tds" to sensorData.tds
+        )
+    }
+
     private val sensorDataListener = object : ValueEventListener { // Listener for sensor data
         override fun onDataChange(snapshot: DataSnapshot) {
             val currentTime = System.currentTimeMillis()
@@ -66,8 +79,8 @@ class SensorDataRepository(
                     sensorData.lightLevel >= 0.0 &&
                     sensorData.pH >= 0.0 &&
                     sensorData.temperature >= -20.0 &&
-                    sensorData.waterLevel >= -20.0 &&
-                    sensorData.waterTemp >= 0.0
+                    sensorData.waterTemp >= 0.0 &&
+                    sensorData.tds >= 0.0
         }
 
         override fun onCancelled(error: DatabaseError) { // Handle errors
@@ -110,19 +123,14 @@ class SensorDataRepository(
 
     // Save only the latest sensor data to Firestore every SaveInterval, but check if timestamp changed
     private suspend fun saveSensorDataToFirestore(sensorData: SensorData) {
-        // Add a delay to allow other operations to complete
         delay(10000) // Delay for 10 seconds
 
         val currentTime = System.currentTimeMillis()
 
-        // Check if the current sensor data's timestamp is not within 10 minutes of the last uploaded timestamp
         if (sensorData.timestamp - lastUploadedTimestamp >= 600_000) {
-            // Check if the new sensor data is different from the last uploaded sensor data
             if (lastUploadedSensorData == null || lastUploadedSensorData != sensorData) {
                 try {
-                    // Avoid uploading if the same timestamp exists in Firestore
                     if (currentTime - lastFirestoreSaveTime >= firestoreSaveInterval) {
-                        // Check for duplicates based on timestamp
                         val existingDoc = sensorHistoryCollection
                             .whereEqualTo("timestamp", sensorData.timestamp)
                             .limit(1)
@@ -130,17 +138,17 @@ class SensorDataRepository(
                             .await()
 
                         if (existingDoc.isEmpty) {
-                            // Save new sensor data
                             val docRef = sensorHistoryCollection.document()
+                            val sensorDataMap = sensorDataToFirestoreMap(sensorData)
                             firestore.runTransaction { transaction ->
-                                transaction.set(docRef, sensorData)
+                                transaction.set(docRef, sensorDataMap)
                             }.await()
 
-                            lastFirestoreSaveTime = currentTime // Update the last save time
-                            lastUploadedTimestamp = sensorData.timestamp // Update the last uploaded timestamp
-                            lastUploadedSensorData = sensorData // Store the last uploaded sensor data
-                            saveLastFirestoreTimestamps() // Save the last timestamps
-                            Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorData")
+                            lastFirestoreSaveTime = currentTime
+                            lastUploadedTimestamp = sensorData.timestamp
+                            lastUploadedSensorData = sensorData
+                            saveLastFirestoreTimestamps()
+                            Log.d(tagSensorDataRepository, "Saved sensor data to Firestore: $sensorDataMap")
                         }
                     }
                 } catch (e: Exception) {
@@ -172,7 +180,6 @@ class SensorDataRepository(
                 val results = mutableListOf<SensorData>()
                 var lastVisibleDocument: com.google.firebase.firestore.DocumentSnapshot? = null
 
-                // Paginated fetch in chunks of 100
                 do {
                     val snapshot = if (lastVisibleDocument == null) {
                         query.get().await()
@@ -180,7 +187,25 @@ class SensorDataRepository(
                         query.startAfter(lastVisibleDocument).get().await()
                     }
 
-                    results.addAll(snapshot.documents.mapNotNull { it.toObject(SensorData::class.java) })
+                    // Map each document manually, excluding waterLevel if present
+                    snapshot.documents.forEach { document ->
+                        val data = document.data ?: return@forEach
+
+                        // Create a SensorData object, excluding waterLevel if present in Firestore
+                        val sensorData = SensorData(
+                            carbonDioxide = data["carbonDioxide"] as? Double ?: 0.0,
+                            humidity = data["humidity"] as? Double ?: 0.0,
+                            lightLevel = data["lightLevel"] as? Double ?: 0.0,
+                            pH = data["pH"] as? Double ?: 0.0,
+                            temperature = data["temperature"] as? Double ?: 0.0,
+                            timestamp = data["timestamp"] as? Long ?: 0L,
+                            waterLevel = false, // Default to false or a suitable default
+                            waterTemp = data["waterTemp"] as? Double ?: 0.0,
+                            tds = data["tds"] as? Double ?: 0.0
+                        )
+                        results.add(sensorData)
+                    }
+
                     lastVisibleDocument = snapshot.documents.lastOrNull()
                 } while (snapshot.size() >= 100)
 
