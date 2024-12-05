@@ -124,7 +124,6 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
                         Pair("Temperature") { sensorData: SensorData -> sensorData.temperature },
                         Pair("Humidity") { sensorData: SensorData -> sensorData.humidity },
                         Pair("CO2 Level") { sensorData: SensorData -> sensorData.carbonDioxide },
-                        Pair("Water Level") { sensorData: SensorData -> sensorData.waterLevel },
                         Pair("Water Temperature") { sensorData: SensorData -> sensorData.waterTemp },
                         Pair("Light Level") { sensorData: SensorData -> sensorData.lightLevel },
                         Pair("pH Level") { sensorData: SensorData -> sensorData.pH },
