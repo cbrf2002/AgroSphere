@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AgroSphere</string>
+    <string name="title_activity_main">AgroSphere</string>
+    <string name="login_subtitle">IoT-Based Automated Greenhouse\nMonitoring System</string>
+    <string name="username_string">Username</string>
+    <string name="password_string">Password</string>
+    <string name="log_in_string">Log In</string>
+    <string name="sign_up_string">Sign Up"</string>
+    <string name="greenhouses_string">Greenhouses</string>
+    <string name="setup_greenhouse_string">Set-up new greenhouse</string>
+    <string name="login_display_dev_text">V.0.2 | Developed by Fabian, Sumalinog, and Vicente\nNU Dasmariñas</string>
+    <string name="title_activity_sign_up">SignUpActivity</string>
+    <string name="title_activity_home">Home</string>
+    <string name="title_activity_dashboard_screen">DashboardScreen</string>
+    <string name="default_web_client_id">600551436536-tg1ggp41vpqo64ho3embk35t5c3itqhp.apps.googleusercontent.com</string>
+    <string name="firebase_reference">https://agrosphere-fsvdev-default-rtdb.asia-southeast1.firebasedatabase.app/</string>
+
+    <string name="privacy_policy_and_tos_title">Privacy Policy and Terms of Service</string>
+
+</resources>
