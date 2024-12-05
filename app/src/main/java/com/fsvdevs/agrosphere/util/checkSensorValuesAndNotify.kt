@@ -17,7 +17,7 @@ fun checkSensorValuesAndNotify(context: Context, sensorData: SensorData, sensorR
         ThresholdCheck("Temperature", sensorData.temperature < sensorRangeData.tempRangeLow || sensorData.temperature > sensorRangeData.tempRangeHigh, "Temperature Out of Range", "Temperature is %.2f°C. It should be between %.2f and %.2f.".format(sensorData.temperature, sensorRangeData.tempRangeLow, sensorRangeData.tempRangeHigh)),
         ThresholdCheck("Humidity", sensorData.humidity < sensorRangeData.humRangeLow || sensorData.humidity > sensorRangeData.humRangeHigh, "Humidity Out of Range", "Humidity is %.2f%%. It should be between %.2f and %.2f.".format(sensorData.humidity, sensorRangeData.humRangeLow, sensorRangeData.humRangeHigh)),
         ThresholdCheck("pH", sensorData.pH < 5.5 || sensorData.pH > 6.5, "pH Level Out of Range", "pH levels are %.2f. It should be between 5.5 and 6.5.".format(sensorData.pH)),
-        ThresholdCheck("WaterLevel", sensorData.waterLevel < 20.0, "Low Water Level", "Water level has dropped below %.2f%%.".format(sensorData.waterLevel)),
+        ThresholdCheck("WaterLevel", sensorData.waterLevel == false, "Low Water Level", "Water level is insufficient. Immediate action is required."),
         ThresholdCheck("LightLevel", sensorData.lightLevel < 30000.0, "Insufficient Light", "Light levels are below %.2f lux.".format(sensorData.lightLevel))
     )
 
