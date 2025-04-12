@@ -6,18 +6,33 @@ AgroSphere is a smart agriculture monitoring and control system application desi
 
 ## Architecture
 
-The application follows the MVVM (Model-View-ViewModel) architecture pattern with the following components:
+The application follows a multi-tier architecture with three main components:
 
-- **Models**: Data classes representing various entities
-- **Repositories**: Handle data operations and business logic
-- **ViewModels**: Connect the UI with the data layer
-- **UI**: Jetpack Compose based user interface components
+1. **Mobile Application Tier** (MVVM pattern):
+   - **Models**: Data classes representing various entities
+   - **Repositories**: Handle data operations and business logic
+   - **ViewModels**: Connect the UI with the data layer
+   - **UI**: Jetpack Compose based user interface components
+
+2. **Cloud Service Tier**:
+   - Firebase Realtime Database for data storage and synchronization
+   - Firebase Authentication for secure access control
+   - Server-generated timestamps for consistent time records
+
+3. **Hardware Control Tier** (ESP32-based):
+   - Sensor data acquisition and processing
+   - Actuator control logic implementation
+   - Data transmission to cloud services
+   - Automatic climate control algorithms
+
+This three-tier architecture enables real-time data flow, responsive control, and separation of concerns between the hardware, cloud, and user interface components.
 
 ### Technology Stack
 
+#### Mobile Application
 - **UI Framework**: Jetpack Compose with Material 3
 - **Programming Language**: Kotlin
-- **Backend**: Firebase Realtime Database
+- **Backend Integration**: Firebase Realtime Database
 - **Local Storage**: Room Database, DataStore Preferences
 - **Asynchronous Operations**: Kotlin Coroutines and Flow
 - **Charting**: MPAndroidChart library
@@ -27,6 +42,21 @@ The application follows the MVVM (Model-View-ViewModel) architecture pattern wit
 - **Minimum SDK**: Android 10 (API level 29)
 - **Target SDK**: Android 14 (API level 34)
 - **Compose Compiler Version**: 1.5.15
+
+#### Hardware Control System
+- **Microcontroller**: ESP32 (Dual-core, 240MHz, with WiFi and BLE)
+- **Firmware Framework**: Arduino core for ESP32
+- **Cloud Integration**: Firebase Arduino Client Library
+- **Sensor Libraries**:
+  - DHT library (temperature/humidity)
+  - OneWire & DallasTemperature (water temperature)
+  - Wire & BH1750 (light measurement)
+  - ESP32Servo (vent control)
+- **Connectivity**: WiFi with SSL/TLS encryption
+- **Time Synchronization**: NTP (Network Time Protocol)
+- **Authentication**: Firebase User Authentication
+- **Memory Management**: Dynamic buffer allocation and cleanup
+- **Build System**: PlatformIO/Arduino IDE
 
 ## Core Components
 
@@ -538,3 +568,307 @@ The application uses Firebase Realtime Database with the following structure:
 ## Conclusion
 
 AgroSphere provides a comprehensive solution for monitoring and controlling agricultural environments. Its architecture emphasizes efficiency, responsiveness, and reliability through smart caching, real-time updates, and fallback mechanisms. The application is designed to work seamlessly in both online and offline scenarios, providing users with valuable insights into their growing environment and precise control over climate conditions.
+
+## ESP32 Firmware and Firebase Communication
+
+The AgroSphere system uses an ESP32 microcontroller as the hardware interface between sensors, actuators, and the Firebase Realtime Database. The ESP32 firmware handles data collection, processing, transmission, and control logic execution based on settings received from the Android application.
+
+### Hardware Components
+
+The ESP32 interfaces with the following hardware components:
+
+#### Sensors
+- **DHT11**: Temperature and humidity monitoring
+- **MQ135**: Carbon dioxide (CO2) measurement
+- **BH1750**: Light intensity measurement
+- **Float Switch**: Water level detection
+- **DS18B20**: Water temperature measurement
+- **PH4502C**: pH level measurement
+- **TDS/EC Sensor**: Total Dissolved Solids measurement
+
+#### Actuators
+- **Ventilation Servo**: Controls greenhouse vent opening/closing
+- **Fan Relay**: Controls circulation fan
+- **Mist Pump Relay**: Controls hydroponic misting system
+
+#### Physical Construction
+- **ESP32 Development Board**: Main microcontroller
+- **Prototype PCB**: For sensor and actuator connections
+- **12V Power Supply**: Powering the system and actuators
+- **3.3V/5V Regulators**: For sensor power requirements
+- **Relay Module**: For high-current actuator control
+- **Waterproof Enclosure**: For protecting electronics
+
+### Pin Configuration
+
+```cpp
+//Sensor declarations
+constexpr int mqPin = 34;      // MQ135 CO2 sensor
+constexpr int lightPin = 21;    // BH1750 I2C interface
+constexpr int wlPin = 19;       // Float switch water level
+constexpr int wtPin = 23;       // DS18B20 water temperature
+constexpr int phPin = 33;       // PH4502C pH sensor
+constexpr int tdsPin = 32;      // TDS/EC sensor
+constexpr int dhtPin = 12;      // DHT11 temperature/humidity
+
+//Actuator declarations
+constexpr int fanPin = 18;      // Fan relay control
+constexpr int mistPin = 17;     // Mist pump relay control
+constexpr int ventPin = 13;     // Servo motor for ventilation
+```
+
+### Firebase Communication Protocol
+
+The ESP32 communicates with the Android application through Firebase Realtime Database, which serves as the central communication hub. The communication follows this pattern:
+
+#### Authentication Flow
+1. ESP32 connects to WiFi network
+2. Authenticates with Firebase using email/password credentials
+3. Receives authentication tokens for secure database access
+4. Establishes persistent connection to the Realtime Database
+
+#### Data Upload Cycle
+1. ESP32 reads all sensor values at regular intervals (20 seconds)
+2. Processes raw sensor readings into standardized units
+3. Uploads current sensor values to `/sensorData` node
+4. Periodically (every 60 seconds) creates timestamped entries in `/sensorHistory` node
+
+#### Control Signal Reception
+1. ESP32 monitors the `/actuatorStates` and `/sensorRanges` nodes for changes
+2. Reads control mode setting (`auto` boolean value)
+3. In manual mode: reads and applies actuator states directly
+4. In automatic mode: uses sensor range thresholds to determine actuator states
+
+### Firebase Database Structure Used by ESP32
+
+```
+│
+├── actuatorStates
+│   ├── auto: boolean     // Control mode (automatic vs manual)
+│   ├── fan: boolean      // Fan state
+│   ├── mist: boolean     // Mist system state
+│   └── vent: boolean     // Ventilation state
+│
+├── sensorData            // Current sensor readings
+│   ├── carbonDioxide: number
+│   ├── humidity: number
+│   ├── lightLevel: number
+│   ├── pH: number
+│   ├── temperature: number
+│   ├── timestamp: number
+│   ├── tds: number
+│   ├── waterLevel: boolean
+│   └── waterTemp: number
+│
+├── sensorHistory         // Historical time-series data
+│   ├── m{timestamp}-{random}    // Unique ID for each entry
+│   │   ├── carbonDioxide: number
+│   │   ├── humidity: number
+│   │   ├── lightLevel: number
+│   │   ├── pH: number
+│   │   ├── temperature: number
+│   │   ├── timestamp: number
+│   │   ├── tds: number
+│   │   ├── waterLevel: boolean
+│   │   └── waterTemp: number
+│   └── ...
+│
+└── sensorRanges          // Threshold settings for automatic control
+    ├── humRangeHigh: number
+    ├── humRangeLow: number
+    ├── preset: string
+    ├── tempRangeHigh: number
+    └── tempRangeLow: number
+```
+
+### Control Logic
+
+The ESP32 firmware implements two control modes:
+
+#### Manual Mode
+When `actuatorStates/auto` is set to `false`:
+- ESP32 directly applies the boolean values from Firebase:
+  - `actuatorStates/fan` controls fan state
+  - `actuatorStates/mist` controls mist pump state
+  - `actuatorStates/vent` controls ventilation servo position
+
+#### Automatic Mode
+When `actuatorStates/auto` is set to `true`, the ESP32 implements climate control logic:
+
+1. **Temperature Control Logic**
+   - If temperature > `tempRangeHigh`:
+     - Activate fan and open ventilation
+     - If humidity < `humRangeLow`, activate mist for evaporative cooling
+   - If temperature < `tempRangeLow`:
+     - No cooling required
+     - Control humidity as needed
+
+2. **Humidity Control Logic**
+   - If humidity < `humRangeLow`:
+     - Activate mist system to increase humidity
+   - If humidity > `humRangeHigh`:
+     - Activate fan and open ventilation to reduce humidity
+
+3. **Hysteresis Implementation**
+   - Temperature margin: ±1.0°C around thresholds
+   - Humidity margin: ±2.0% around thresholds
+   - 2-second minimum delay between state changes
+   - Prevents oscillation and rapid cycling of actuators
+   - Extends equipment life and improves climate stability
+
+#### Mist Pump Safety Cycle
+To prevent overheating and equipment damage:
+- When activated, mist pump runs for maximum 2 minutes
+- After running, enforces 5-minute cooldown period
+- Automatically manages duty cycle during extended operation
+
+### Data Flow Between ESP32 and Android App
+
+```
+┌─────────────┐                  ┌──────────────────┐                  ┌──────────────┐
+│             │  1. Read Sensors │                  │  5. Read Data    │              │
+│             │─────────────────►│                  │◄─────────────────│              │
+│             │                  │                  │                  │              │
+│             │  2. Process Data │                  │  6. Display in   │              │
+│    ESP32    │─────────────────►│  Firebase        │─────────────────►│  Android App │
+│ Microcontrol│                  │  Realtime        │                  │              │
+│    Board    │  3. Upload Data  │  Database        │  7. User Control │              │
+│             │─────────────────►│                  │◄─────────────────│              │
+│             │                  │                  │                  │              │
+│             │  4. Read Settings│                  │  8. Save Settings│              │
+│             │◄─────────────────│                  │◄─────────────────│              │
+└─────────────┘                  └──────────────────┘                  └──────────────┘
+```
+
+1. **ESP32 to Firebase**:
+   - Current sensor readings → `/sensorData` node (20-second intervals)
+   - Historical sensor data → `/sensorHistory/{uniqueID}` (60-second intervals)
+   - Actuator states in auto mode → `/actuatorStates/*` (real-time updates)
+
+2. **Firebase to ESP32**:
+   - Control mode setting → `actuatorStates/auto` (polled every 1 second)
+   - Manual actuator controls → `actuatorStates/{fan|mist|vent}` (polled every 1 second)
+   - Climate thresholds → `sensorRanges/*` (polled every 1 second)
+
+3. **Firebase to Android App**:
+   - Current sensor data → Real-time listeners on `/sensorData`
+   - Actuator states → Real-time listeners on `/actuatorStates/*`
+   - Historical data → Query-based fetching from `/sensorHistory`
+   - Climate thresholds → Real-time listeners on `/sensorRanges/*`
+
+4. **Android App to Firebase**:
+   - User control inputs → Updates to `/actuatorStates/*`
+   - Climate threshold settings → Updates to `/sensorRanges/*`
+
+### Implementation Highlights
+
+#### Fault Tolerance Features
+- WiFi reconnection handling
+- Firebase authentication refresh
+- Sensor error detection and default values
+- Watchdog timers to prevent system hangs
+
+#### Memory Optimization
+- Efficient string handling to prevent heap fragmentation
+- Strategic use of static variables for repetitive operations
+- Buffer management for sensors with multiple readings
+
+#### Time Synchronization
+- NTP time server synchronization
+- Server-generated timestamps for consistent time records
+- Millisecond precision for analytical accuracy
+
+### Testing and Simulation Mode
+
+The firmware includes a testing mode that can generate simulated sensor data:
+
+```cpp
+void updateMockSensorValues() {
+  temperature = mockSensorValue(prevTemperature, 25.0, 27.0, 0.1);
+  humidity = mockSensorValue(prevHumidity, 65.0, 70.0, 0.2);
+  carbonDioxide = mockSensorValue(prevCarbonDioxide, 970.0, 1020.0, 5.0);
+  lightLevel = mockSensorValue(prevLightLevel, 880.0, 1023.0, 10.0);
+  float mockWater = mockSensorValue(prevWaterLevel, 10.0, 30.0, 1.0);
+  waterLevel = (mockWater > 15.0);
+  waterTemp = mockSensorValue(prevWaterTemp, 20.0, 25.0, 0.1);
+  pH = mockSensorValue(prevPH, 6.0, 7.0, 0.05);
+  tds = mockSensorValue(prevTDS, 0.8, 2.2, 0.05);
+}
+```
+
+This allows for system testing without physical sensors and provides a consistent data stream for application development and demonstration purposes.
+
+## Project
+1. **ESP32 to Firebase**:
+   - Current sensor readings → `/sensorData` node (20-second intervals)
+   - Historical sensor data → `/sensorHistory/{uniqueID}` (60-second intervals)
+   - Actuator states in auto mode → `/actuatorStates/*` (real-time updates)
+
+2. **Firebase to ESP32**:
+   - Control mode setting → `actuatorStates/auto` (polled every 1 second)
+   - Manual actuator controls → `actuatorStates/{fan|mist|vent}` (polled every 1 second)
+   - Climate thresholds → `sensorRanges/*` (polled every 1 second)
+
+3. **Firebase to Android App**:
+   - Current sensor data → Real-time listeners on `/sensorData`
+   - Actuator states → Real-time listeners on `/actuatorStates/*`
+   - Historical data → Query-based fetching from `/sensorHistory`
+   - Climate thresholds → Real-time listeners on `/sensorRanges/*`
+
+4. **Android App to Firebase**:
+   - User control inputs → Updates to `/actuatorStates/*`
+   - Climate threshold settings → Updates to `/sensorRanges/*`
+
+### Implementation Highlights
+
+#### Fault Tolerance Features
+- WiFi reconnection handling
+- Firebase authentication refresh
+- Sensor error detection and default values
+- Watchdog timers to prevent system hangs
+
+#### Memory Optimization
+- Efficient string handling to prevent heap fragmentation
+- Strategic use of static variables for repetitive operations
+- Buffer management for sensors with multiple readings
+
+#### Time Synchronization
+- NTP time server synchronization
+- Server-generated timestamps for consistent time records
+- Millisecond precision for analytical accuracy
+
+### Testing and Simulation Mode
+
+The firmware includes a testing mode that can generate simulated sensor data:
+
+```cpp
+void updateMockSensorValues() {
+  temperature = mockSensorValue(prevTemperature, 25.0, 27.0, 0.1);
+  humidity = mockSensorValue(prevHumidity, 65.0, 70.0, 0.2);
+  carbonDioxide = mockSensorValue(prevCarbonDioxide, 970.0, 1020.0, 5.0);
+  lightLevel = mockSensorValue(prevLightLevel, 880.0, 1023.0, 10.0);
+  float mockWater = mockSensorValue(prevWaterLevel, 10.0, 30.0, 1.0);
+  waterLevel = (mockWater > 15.0);
+  waterTemp = mockSensorValue(prevWaterTemp, 20.0, 25.0, 0.1);
+  pH = mockSensorValue(prevPH, 6.0, 7.0, 0.05);
+  tds = mockSensorValue(prevTDS, 0.8, 2.2, 0.05);
+}
+```
+
+This allows for system testing without physical sensors and provides a consistent data stream for application development and demonstration purposes.
+ Structure
+
+- **models/**: Data classes representing domain entities
+- **viewmodel/**: ViewModels connecting UI with data layer
+- **repository/**: Data access and business logic
+- **ui/**: Compose UI components and screens
+- **ui/dialog/**: Reusable dialog components
+- **ui/theme/**: Theming, colors and typography
+- **util/**: Utility functions and helper classes
+- **dao/**: Data Access Objects for Room
+- **room/**: Room database configuration
+- **routes/**: Navigation route definitions
+
+## Conclusion
+
+AgroSphere provides a comprehensive solution for monitoring and controlling agricultural environments. The integrated system combines mobile application technology with IoT hardware control through ESP32 microcontrollers, creating a seamless experience for greenhouse management. Its architecture emphasizes efficiency, responsiveness, and reliability through smart caching, real-time updates, and fallback mechanisms. Both the mobile application and ESP32 firmware are designed to work together seamlessly in both online and offline scenarios, providing users with valuable insights into their growing environment and precise control over climate conditions.
