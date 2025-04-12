@@ -25,8 +25,8 @@ android {
         minSdk = 29
         //noinspection EditedTargetSdkVersion
         targetSdk = 35
-        versionCode = 255
-        versionName = "1.39"
+        versionCode = 517
+        versionName = "1.48"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -95,6 +95,8 @@ dependencies {
     implementation(libs.play.services.auth)
     implementation(libs.play.services.base)
     implementation(libs.protobuf.javalite)
+    implementation(libs.gson)
+    implementation(libs.pullrefresh)
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     ksp(libs.androidx.room.compiler)
