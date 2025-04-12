@@ -1,5 +1,6 @@
 package com.fsvdevs.agrosphere.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,29 +9,86 @@ import com.fsvdevs.agrosphere.repository.SensorDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.lang.Exception
 
 class SensorDataViewModel(private val repository: SensorDataRepository) : ViewModel() {
     val sensorData: StateFlow<SensorData?> = repository.sensorData
+    val databaseChangeDetected = repository.databaseChangeDetected
 
     private val _sensorHistory = MutableStateFlow<List<SensorData>>(emptyList())
     val sensorHistory: StateFlow<List<SensorData>> = _sensorHistory
+    
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+    
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
 
-    private val cachedSensorHistory = mutableMapOf<String, List<SensorData>>()
-    private var cacheCreationTime: Long = 0L
-    private val cacheTimeout = 3600000L // 1 hour
-
-    fun fetchSensorHistoryByRange(timeRange: String) {
+    // Track current range for refreshing
+    private var currentTimeRange: String = "Hour"
+    private val TAG = "SensorDataViewModel"
+    
+    init {
+        // Listen for database changes and refresh data when needed
         viewModelScope.launch {
-            val currentTime = System.currentTimeMillis()
-            val isCacheExpired = currentTime - cacheCreationTime > cacheTimeout
+            repository.databaseChangeDetected.collect { hasChanged ->
+                if (hasChanged) {
+                    Log.d(TAG, "Database change detected, refreshing data")
+                    refreshData(currentTimeRange)
+                }
+            }
+        }
+        
+        fetchSensorHistoryByRange("Hour")
+    }
 
-            if (cachedSensorHistory.containsKey(timeRange) && !isCacheExpired) {
-                _sensorHistory.value = cachedSensorHistory[timeRange] ?: emptyList()
-            } else {
-                val data = repository.getSensorHistoryByTimePeriod(getTimePeriodInMillis(timeRange))
-                cachedSensorHistory[timeRange] = data
-                _sensorHistory.value = data
-                cacheCreationTime = currentTime
+    fun fetchSensorHistoryByRange(timeRange: String, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+                currentTimeRange = timeRange
+                Log.d(TAG, "Fetching sensor history for range: $timeRange")
+                
+                val data = repository.getSensorHistoryByTimePeriod(
+                    getTimePeriodInMillis(timeRange), 
+                    forceRefresh
+                )
+                
+                if (data.isNotEmpty()) {
+                    Log.d(TAG, "Loaded ${data.size} data points for $timeRange")
+                    _sensorHistory.value = data
+                } else {
+                    Log.d(TAG, "No data available for $timeRange")
+                    
+                    // For Hour view, try with extended time range
+                    if (timeRange == "Hour") {
+                        Log.d(TAG, "Trying extended range for Hour view")
+                        val extendedData = repository.getSensorHistoryByTimePeriod(
+                            3600000L * 12, // Look back 12 hours instead of 1
+                            forceRefresh
+                        )
+                        
+                        if (extendedData.isNotEmpty()) {
+                            Log.d(TAG, "Loaded ${extendedData.size} points with extended range")
+                            // Take the most recent entries up to a reasonable number
+                            val recentData = extendedData.takeLast(20)
+                            _sensorHistory.value = recentData
+                        } else {
+                            _sensorHistory.value = emptyList()
+                            _errorMessage.value = "No data available for the selected time range"
+                        }
+                    } else {
+                        _sensorHistory.value = emptyList()
+                        _errorMessage.value = "No data available for the selected time range"
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching history data: ${e.message}", e)
+                _sensorHistory.value = emptyList()
+                _errorMessage.value = "Error loading data: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -46,14 +104,20 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
         }
     }
 
-    init {
-        fetchSensorHistoryByRange("Hour")
+    // Force refresh all cached data
+    fun clearAllCaches() {
+        viewModelScope.launch {
+            repository.clearAllCachedData()
+            refreshData(currentTimeRange)
+        }
     }
 
-    // Clear the cache based on certain events or intervals
-    private fun clearCache() {
-        cachedSensorHistory.clear()
-        cacheCreationTime = 0L
+    // Refresh current timerange data
+    fun refreshData(timeRange: String? = null) {
+        viewModelScope.launch {
+            val rangeToRefresh = timeRange ?: currentTimeRange
+            fetchSensorHistoryByRange(rangeToRefresh, true)
+        }
     }
 
     override fun onCleared() {
