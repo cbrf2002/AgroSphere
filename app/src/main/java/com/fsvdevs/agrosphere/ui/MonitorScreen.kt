@@ -37,8 +37,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -71,18 +71,27 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
     val errorMessage = sensorDataViewModel.errorMessage.collectAsState()
     val databaseChanged = sensorDataViewModel.databaseChangeDetected.collectAsState()
     
-    var selectedTabIndex = remember { mutableIntStateOf(0) }
+    // Use rememberSaveable to preserve tab state during navigation
+    var selectedTabIndex = rememberSaveable { mutableIntStateOf(0) }
     val timeRanges = listOf("Hour", "Day", "Week", "Month", "Year")
     
     val hasData = remember { derivedStateOf { sensorHistory.value.isNotEmpty() } }
-
-    // Fetch data when tab changes
-    LaunchedEffect(selectedTabIndex.intValue) {
-        Log.d("MonitorScreen", "Tab changed to ${timeRanges[selectedTabIndex.intValue]}")
-        sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
+    
+    // Force refresh when screen is displayed
+    LaunchedEffect(Unit) {
+        Log.d("MonitorScreen", "Initial load")
+        // Force refresh on initial load
+        sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue], true)
     }
 
-    // Initial data fetch and refresh when database changes are detected
+    // Fetch data when tab changes - with key dependencies
+    LaunchedEffect(selectedTabIndex.intValue, timeRanges[selectedTabIndex.intValue]) {
+        Log.d("MonitorScreen", "Tab changed to ${timeRanges[selectedTabIndex.intValue]}")
+        // Always force refresh on tab change
+        sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue], true)
+    }
+
+    // Database change detection 
     LaunchedEffect(databaseChanged.value) {
         if (databaseChanged.value) {
             Log.d("MonitorScreen", "Database change detected, refreshing")
@@ -90,17 +99,11 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
         }
     }
     
-    // Initial load
-    LaunchedEffect(Unit) {
-        Log.d("MonitorScreen", "Initial load")
-        sensorDataViewModel.fetchSensorHistoryByRange(timeRanges[selectedTabIndex.intValue])
-    }
-
     // Background refresh with reduced frequency
     LaunchedEffect(Unit) {
         while (true) {
-            delay(180000) // 3 minutes
-            Log.d("MonitorScreen", "Background refresh")
+            delay(60000) // Reduced to 1 minute for more responsive updates
+            Log.d("MonitorScreen", "Background refresh timer triggered")
             sensorDataViewModel.refreshData(timeRanges[selectedTabIndex.intValue])
         }
     }
@@ -151,7 +154,7 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
                         }
                     }
                     
-                    // Tab row
+                    // Tab row - add key to force recomposition
                     PrimaryTabRow(
                         selectedTabIndex = selectedTabIndex.intValue,
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
@@ -159,7 +162,12 @@ fun MonitorScreen(sensorDataViewModel: SensorDataViewModel) {
                         timeRanges.forEachIndexed { index, range ->
                             Tab(
                                 selected = selectedTabIndex.intValue == index,
-                                onClick = { selectedTabIndex.intValue = index },
+                                onClick = { 
+                                    if (selectedTabIndex.intValue != index) {
+                                        selectedTabIndex.intValue = index
+                                        // No need to call fetch here as LaunchedEffect will handle it
+                                    }
+                                },
                                 text = { Text(range) }
                             )
                         }
