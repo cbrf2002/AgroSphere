@@ -47,8 +47,15 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
             try {
                 _isLoading.value = true
                 _errorMessage.value = null
+                
+                // Always update current time range regardless of force refresh
                 currentTimeRange = timeRange
-                Log.d(TAG, "Fetching sensor history for range: $timeRange")
+                Log.d(TAG, "Fetching sensor history for range: $timeRange, forceRefresh: $forceRefresh")
+                
+                // Clear existing data immediately to ensure UI reflects loading state
+                if (forceRefresh) {
+                    _sensorHistory.value = emptyList()
+                }
                 
                 val data = repository.getSensorHistoryByTimePeriod(
                     getTimePeriodInMillis(timeRange), 
@@ -58,6 +65,7 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
                 if (data.isNotEmpty()) {
                     Log.d(TAG, "Loaded ${data.size} data points for $timeRange")
                     _sensorHistory.value = data
+                    _errorMessage.value = null
                 } else {
                     Log.d(TAG, "No data available for $timeRange")
                     
@@ -74,6 +82,7 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
                             // Take the most recent entries up to a reasonable number
                             val recentData = extendedData.takeLast(20)
                             _sensorHistory.value = recentData
+                            _errorMessage.value = null
                         } else {
                             _sensorHistory.value = emptyList()
                             _errorMessage.value = "No data available for the selected time range"
@@ -116,6 +125,7 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
     fun refreshData(timeRange: String? = null) {
         viewModelScope.launch {
             val rangeToRefresh = timeRange ?: currentTimeRange
+            Log.d(TAG, "Explicitly refreshing data for range: $rangeToRefresh")
             fetchSensorHistoryByRange(rangeToRefresh, true)
         }
     }
