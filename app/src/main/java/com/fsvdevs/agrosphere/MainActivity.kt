@@ -41,6 +41,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -383,6 +384,9 @@ fun NavRoutes(
     LaunchedEffect(navBackStackEntry) {
         previousRoute = currentRoute
         currentRoute = navBackStackEntry?.destination?.route ?: Routes.DASHBOARD_SCREEN
+        
+        // Log navigation to help with debugging
+        Log.d("Navigation", "Route changed from $previousRoute to $currentRoute")
     }
 
     AnimatedContent(
@@ -422,7 +426,10 @@ fun NavRoutes(
             }
             composable(Routes.MONITOR_SCREEN) {
                 if (targetRoute == Routes.MONITOR_SCREEN) {
-                    MonitorScreen(sensorDataViewModel)
+                    // Add a key parameter to force recomposition when revisiting
+                    key(targetRoute) {
+                        MonitorScreen(sensorDataViewModel)
+                    }
                 }
             }
             composable(Routes.NOTIFICATIONS_SCREEN) {
