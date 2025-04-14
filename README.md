@@ -1,874 +1,280 @@
 # AgroSphere - Technical Documentation
 
-## Overview
+## 1. Overview
 
-AgroSphere is a smart agriculture monitoring and control system application designed to provide real-time sensor data visualization and remote control of greenhouse/hydroponics environments. The app connects to IoT sensors and actuators through Firebase Realtime Database, allowing users to monitor environmental conditions and control climate systems for optimal plant growth.
+AgroSphere is an IoT-based system designed for automated monitoring and internal climate control of hydroponic greenhouses. It provides real-time sensor data visualization, remote actuator control, and automated environmental management through an Android mobile application connected to an ESP32 microcontroller via Firebase Realtime Database. The system aims to optimize growing conditions, improve resource efficiency, and enhance crop yields, particularly targeting environments like Sampaloc II, Dasmariñas, Cavite.
 
-## Architecture
-
-The application follows a multi-tier architecture with three main components:
-
-1. **Mobile Application Tier** (MVVM pattern):
-   - **Models**: Data classes representing various entities
-   - **Repositories**: Handle data operations and business logic
-   - **ViewModels**: Connect the UI with the data layer
-   - **UI**: Jetpack Compose based user interface components
-
-2. **Cloud Service Tier**:
-   - Firebase Realtime Database for data storage and synchronization
-   - Firebase Authentication for secure access control
-   - Server-generated timestamps for consistent time records
-
-3. **Hardware Control Tier** (ESP32-based):
-   - Sensor data acquisition and processing
-   - Actuator control logic implementation
-   - Data transmission to cloud services
-   - Automatic climate control algorithms
-
-This three-tier architecture enables real-time data flow, responsive control, and separation of concerns between the hardware, cloud, and user interface components.
-
-### Technology Stack
-
-#### Mobile Application
-- **UI Framework**: Jetpack Compose with Material 3
-- **Programming Language**: Kotlin
-- **Backend Integration**: Firebase Realtime Database
-- **Local Storage**: Room Database, DataStore Preferences
-- **Asynchronous Operations**: Kotlin Coroutines and Flow
-- **Charting**: MPAndroidChart library
-- **Authentication**: Firebase Authentication with Google Sign-In
-- **Dependency Injection**: Manual dependency injection
-- **Build System**: Gradle with Kotlin DSL
-- **Minimum SDK**: Android 10 (API level 29)
-- **Target SDK**: Android 14 (API level 34)
-- **Compose Compiler Version**: 1.5.15
-
-#### Hardware Control System
-- **Microcontroller**: ESP32 (Dual-core, 240MHz, with WiFi and BLE)
-- **Firmware Framework**: Arduino core for ESP32
-- **Cloud Integration**: Firebase Arduino Client Library
-- **Sensor Libraries**:
-  - DHT library (temperature/humidity)
-  - OneWire & DallasTemperature (water temperature)
-  - Wire & BH1750 (light measurement)
-  - ESP32Servo (vent control)
-- **Connectivity**: WiFi with SSL/TLS encryption
-- **Time Synchronization**: NTP (Network Time Protocol)
-- **Authentication**: Firebase User Authentication
-- **Memory Management**: Dynamic buffer allocation and cleanup
-- **Build System**: PlatformIO/Arduino IDE
-
-## Core Components
-
-### Models
-
-1. **SensorData**
-   - Contains real-time sensor readings:
-     - Temperature (°C)
-     - Humidity (%)
-     - CO2 levels (ppm)
-     - pH levels
-     - Water temperature (°C)
-     - Water level (boolean)
-     - Light level (lux)
-     - TDS (Total Dissolved Solids) (ppm)
-     - Timestamp
-
-2. **SensorRangeData**
-   - Stores acceptable ranges for sensor values:
-     - Temperature range (low/high)
-     - Humidity range (low/high)
-     - Preset name (for different crop profiles)
-
-3. **ActuatorData**
-   - Controls for climate systems:
-     - Fan status (on/off)
-     - Mist system status (on/off)
-     - Vent status (open/closed)
-     - Automatic control mode (on/off)
-
-4. **NotificationData**
-   - Local storage for alert notifications:
-     - Title
-     - Message
-     - Timestamp
-
-### Repositories
-
-1. **SensorDataRepository**
-   - Manages sensor data retrieval and caching
-   - Features:
-     - Multi-level caching (memory + SharedPreferences)
-     - Historical data retrieval with time range filtering
-     - Incremental data fetching for optimized performance
-     - Cache invalidation strategies
-     - Real-time Firebase listeners
-
-2. **SensorRangeDataRepository**
-   - Manages threshold settings for sensors
-   - Handles preset profiles for different crops
-   - Synchronizes settings with Firebase
-
-3. **ActuatorDataRepository**
-   - Controls system actuators (fan, mist, vents)
-   - Synchronizes control states with Firebase
-   - Manages automatic/manual mode settings
-
-4. **NotificationRepository**
-   - Handles local storage of alert notifications
-   - Uses Room Database for persistent storage
-
-### ViewModels
-
-1. **SensorDataViewModel**
-   - Processes and exposes sensor data to UI
-   - Manages data fetching with different time ranges (Hour/Day/Week/Month/Year)
-   - Handles loading states and error messages
-   - Provides methods for cache refreshing
-
-2. **SensorRangeDataViewModel**
-   - Manages acceptable sensor range values
-   - Handles updates to threshold settings
-
-3. **ActuatorDataViewModel** (implied from repository)
-   - Manages actuator states
-   - Provides methods for toggling actuators
-
-### UI Screens
-
-1. **DashboardScreen**
-   - Main control panel showing:
-     - Current sensor readings with status indicators
-     - Actuator control buttons (fan, mist, vent)
-     - Climate control mode toggle (auto/manual)
-     - Temperature and humidity range sliders
-     - Preset selection
-
-2. **MonitorScreen**
-   - Historical data visualization with:
-     - Time range selector tabs (Hour to Year)
-     - Line charts for each sensor type
-     - Data refresh controls
-     - Loading indicators and error handling
-
-## Key Features
-
-### Real-time Monitoring
-- Firebase listeners provide instant updates from sensors
-- StateFlow objects propagate changes to the UI
-- Efficient update throttling (5-second cooldown for sensor data)
-
-### Historical Data Analysis
-- Time-range based data retrieval (Hour to Year views)
-- Line charts showing sensor value trends
-- Custom formatters for time axis based on selected range
-
-### Climate Control System
-- Automatic mode: System regulates environment based on set thresholds
-- Manual mode: User can directly control actuators (fan, mist, vent)
-- Climate range settings: Customizable temperature and humidity ranges
-
-### Preset Profiles
-- Pre-configured settings for different crop types
-- Custom "Manual Range" option for user-defined settings
-
-### Alert System
-- Real-time monitoring of sensor values against thresholds
-- Alert notifications when values exceed safety ranges
-- Notification cooldown mechanism to prevent alert spam (15 minutes)
-- Local storage of alert history
-
-### Caching System
-- Multi-level caching strategy:
-  - Memory cache for fastest access (1-minute lifetime)
-  - SharedPreferences for persistent caching
-  - Cache versioning for proper invalidation
-  - Incremental fetching to optimize data transfer
-
-## Data Flow
-
-1. **Sensor Data Flow**:
-   - IoT devices write sensor data to Firebase
-   - Repository listeners detect changes
-   - Repository updates StateFlow objects
-   - ViewModels process and expose the data
-   - UI components observe and display the data
-
-2. **User Interaction Flow**:
-   - User interacts with UI controls
-   - ViewModel methods are called
-   - Repository updates Firebase data
-   - Firebase listeners detect changes
-   - UI updates to reflect new states
-
-3. **Alert System Flow**:
-   - Repository listeners detect new sensor data
-   - `checkSensorValuesAndNotify` compares values against thresholds
-   - If thresholds exceeded, create notification
-   - Store notification in Room Database
-   - Display system notification to user
-
-## Technical Implementation Details
-
-### Optimized Data Retrieval
-- Smart caching strategies reduce Firebase calls
-- Incremental data fetching for efficient updates
-- Fallback mechanisms for query failures
-- Special handling for sparse data periods
-
-### Responsive UI
-- Material 3 design components
-- Adaptive layouts for different screen sizes
-- Loading indicators and error states
-
-## Firebase Realtime Database Schema
-
-The application uses Firebase Realtime Database with the following structure:
-│
-├── actuatorStates
-│   ├── auto: boolean
-│   ├── fan: boolean
-│   ├── mist: boolean
-│   └── vent: boolean
-│
-├── sensorData
-│   ├── carbonDioxide: number
-│   ├── humidity: number
-│   ├── lightLevel: number
-│   ├── pH: number
-│   ├── tds: number
-│   ├── temperature: number
-│   ├── timestamp: number
-│   ├── waterLevel: boolean
-│   └── waterTemp: number
-│
-├── sensorHistory
-│   ├── {unique-id-1}
-│   │   ├── carbonDioxide: number
-│   │   ├── humidity: number
-│   │   ├── lightLevel: number
-│   │   ├── pH: number
-│   │   ├── tds: number
-│   │   ├── temperature: number
-│   │   ├── timestamp: number
-│   │   ├── waterLevel: boolean
-│   │   └── waterTemp: number
-│   ├── {unique-id-2}
-│   │   └── ...
-│   └── ...
-│
-└── sensorRanges
-    ├── humRangeHigh: number
-    ├── humRangeLow: number
-    ├── preset: string
-    ├── tempRangeHigh: number
-    └── tempRangeLow: number
-
-
-## Core Components
-
-### Models
-
-1. **SensorData**
-   - Contains real-time sensor readings:
-     - Temperature (°C)
-     - Humidity (%)
-     - CO2 levels (ppm)
-     - pH levels
-     - Water temperature (°C)
-     - Water level (boolean)
-     - Light level (lux)
-     - TDS (Total Dissolved Solids) (ppm)
-     - Timestamp
-
-2. **SensorRangeData**
-   - Stores acceptable ranges for sensor values:
-     - Temperature range (low/high)
-     - Humidity range (low/high)
-     - Preset name (for different crop profiles)
-
-3. **ActuatorData**
-   - Controls for climate systems:
-     - Fan status (on/off)
-     - Mist system status (on/off)
-     - Vent status (open/closed)
-     - Automatic control mode (on/off)
-
-4. **NotificationData**
-   - Local storage for alert notifications (Room database entity):
-     - Title
-     - Message
-     - Timestamp
-     - Auto-generated ID
-
-### Repositories
-
-1. **SensorDataRepository**
-   - Manages sensor data retrieval and caching
-   - Features:
-     - Multi-level caching (memory with ConcurrentHashMap + SharedPreferences)
-     - Historical data retrieval with time range filtering (Hour/Day/Week/Month/Year)
-     - Incremental data fetching for optimized performance
-     - Cache versioning for proper invalidation
-     - Real-time Firebase listeners
-     - Intelligent throttling (5-second cooldown for sensor data)
-     - Query optimizations with fallback mechanisms
-     - Specialized handling for sparse data periods
-
-2. **SensorRangeDataRepository**
-   - Manages threshold settings for sensors
-   - Handles preset profiles for different crops
-   - Synchronizes settings with Firebase
-   - Real-time listeners for remote changes
-
-3. **ActuatorDataRepository**
-   - Controls system actuators (fan, mist, vents)
-   - Synchronizes control states with Firebase
-   - Manages automatic/manual mode settings
-   - Provides direct control methods for UI components
-
-4. **NotificationRepository**
-   - Handles local storage of alert notifications
-   - Uses Room Database for persistent storage
-   - Singleton pattern implementation
-   - Methods for retrieving, storing and clearing notifications
-
-### ViewModels
-
-1. **SensorDataViewModel**
-   - Processes and exposes sensor data to UI
-   - Manages data fetching with different time ranges (Hour/Day/Week/Month/Year)
-   - Handles loading states and error messages
-   - Provides methods for cache refreshing
-   - Implements database change detection
-   - Exposes sensor history as StateFlow
-
-2. **SensorRangeDataViewModel**
-   - Manages acceptable sensor range values
-   - Handles updates to threshold settings
-   - Enables preset selection and customization
-   - Factory pattern for ViewModel creation
-
-3. **ActuatorDataViewModel**
-   - Manages actuator states
-   - Provides methods for toggling actuators
-   - Handles automatic/manual mode switching
-   - Factory pattern for ViewModel creation
-
-### UI Screens
-
-1. **DashboardScreen**
-   - Main control panel showing:
-     - Current sensor readings with status indicators
-     - Actuator control buttons (fan, mist, vent)
-     - Climate control mode toggle (auto/manual)
-     - Temperature and humidity range sliders
-     - Preset profile selection
-     - Last update timestamp display
-
-2. **MonitorScreen**
-   - Historical data visualization with:
-     - Time range selector tabs (Hour/Day/Week/Month/Year)
-     - Line charts for each sensor type
-     - Data refresh controls
-     - Loading indicators and error handling
-     - Background data refresh mechanism
-     - Resizable and interactive charts
-     - Custom marker views for data points
-
-3. **NotificationsScreen**
-   - Historical alerts display:
-     - Timestamp-ordered notification list
-     - Notification deletion option
-     - Confirmation dialog for bulk actions
-     - Empty state handling
-
-4. **PreferenceScreen**
-   - Application settings:
-     - Theme selection (Light/Dark/System)
-     - Dynamic color toggle (Android 12+)
-     - Notification settings access
-     - Account information display
-     - App information with author credits
-     - Privacy policy and terms of service
-
-5. **LoginScreen**
-   - Authentication options:
-     - Email/password sign-in
-     - Google account integration
-     - Account creation
-     - Password reset functionality
-
-## Key Features
-
-### Authentication System
-- Multiple sign-in methods (Email/Google)
-- Secure credential handling
-- Session management
-- Password reset functionality
-- Email verification
-
-### Real-time Monitoring
-- Firebase listeners provide instant updates from sensors
-- StateFlow objects propagate changes to the UI
-- Efficient update throttling (5-second cooldown for sensor data)
-- Comprehensive sensor data display (temperature, humidity, CO2, pH, etc.)
-
-### Historical Data Analysis
-- Time-range based data retrieval (Hour to Year views)
-- Line charts showing sensor value trends
-- Custom formatters for time axis based on selected range
-- Interactive data point markers
-- Special handling for sparse data periods
-
-### Climate Control System
-- Automatic mode: System regulates environment based on set thresholds
-- Manual mode: User can directly control actuators (fan, mist, vent)
-- Climate range settings: Customizable temperature and humidity ranges
-- Visual feedback for current system states
-
-### Preset Profiles
-- Pre-configured settings for different growth phases:
-  - Seedling Phase (18-24°C, 60-70%)
-  - Flowering Phase (20-25°C, 70-80%)
-  - Vegetative Phase (22-29°C, 50-60%)
-- Custom "Manual Range" option for user-defined settings
-
-### Alert System
-- Real-time monitoring of sensor values against thresholds
-- Alert notifications when values exceed safety ranges:
-  - Temperature out of range
-  - Humidity out of range
-  - High CO2 levels (>1000 ppm)
-  - pH level out of range (ideal: 5.5-6.5)
-  - Low water level
-  - Insufficient light (<30000 lux)
-- Notification cooldown mechanism (15 minutes) to prevent alert spam
-- Local storage of alert history using Room Database
-- Android system notifications with proper channels
-
-### Caching System
-- Multi-level caching strategy:
-  - In-memory cache for fastest access (1-minute lifetime)
-  - SharedPreferences for persistent caching
-  - Cache versioning for proper invalidation
-  - Incremental fetching to optimize data transfer
-  - Fallback mechanisms when network requests fail
-
-### Adaptive UI/UX
-- Material 3 theming with dynamic color support
-- Dark/light/system theme options
-- Accessibility considerations (scaled density for text)
-- Custom font families:
-  - Maven Pro for display and headings
-  - Roboto for body text
-- Smooth animations and transitions between screens
-- Splash screen with logo and app description
-
-## Data Flow
-
-1. **Sensor Data Flow**:
-   - IoT devices write sensor data to Firebase
-   - Repository listeners detect changes
-   - Repository updates StateFlow objects
-   - ViewModels process and expose the data
-   - UI components observe and display the data
-
-2. **User Interaction Flow**:
-   - User interacts with UI controls
-   - ViewModel methods are called
-   - Repository updates Firebase data
-   - Firebase listeners detect changes
-   - UI updates to reflect new states
-
-3. **Alert System Flow**:
-   - Repository listeners detect new sensor data
-   - `checkSensorValuesAndNotify` compares values against thresholds
-   - If thresholds exceeded, create notification
-   - Store notification in Room Database
-   - Display system notification to user
-   - Implement cooldown to prevent spam
-
-## Technical Implementation Details
-
-### Optimized Data Retrieval
-- Smart caching strategies reduce Firebase calls
-- Incremental data fetching for efficient updates
-- Fallback mechanisms for query failures
-- Special handling for sparse data periods
-- Cache versioning for proper invalidation
-- Memory and disk caching layers
-
-### Navigation and UI Architecture
-- Navigation controller with route definitions
-- Animated transitions between screens
-- Custom composable functions for reusable components
-- Bottom navigation bar with four main sections
-- Top app bar with context-appropriate actions
-- Dialog components for settings and information
-
-### Notification System
-- Android notification channels for proper categorization
-- Permission handling for notifications (Android 13+)
-- Room database for local notification storage
-- Group notifications for better organization
-- Cooldown mechanism to prevent alert spam
-- Custom notification icons and styling
-
-### Theme and Styling
-- Material 3 design implementation
-- Dynamic color support for Android 12+
-- Light/dark theme options with system default option
-- Custom color scheme with semantic color roles
-- Typography system with custom font families
-- Consistent spacing and padding patterns
-- Preference persistence using DataStore
-
-### Build Configuration
-- Gradle with Kotlin DSL
-- Compose Compiler version: 1.5.15
-- Min SDK: 29 (Android 10)
-- Target SDK: 35 (Android 14+)
-- Version: 1.49 (build 519)
-- Key Dependencies:
-  - AndroidX Core KTX
-  - Compose Material 3
-  - Room Database
-  - DataStore Preferences
-  - Navigation Compose
-  - Firebase Auth/Database
-  - MPAndroidChart
-  - Google Play Services Auth
-  - WorkManager
-
-### Room Database Schema
-╔═══════════════════════╗ 
-║ NotificationData      ║ 
-╠═══════════════════════╣ 
-║ id: Integer (PK, auto)║ 
-║ title: String         ║ 
-║ message: String       ║ 
-║ timestamp: Long       ║ 
-╚═══════════════════════╝
-
-
-## Project Structure
-
-- **models/**: Data classes representing domain entities
-- **viewmodel/**: ViewModels connecting UI with data layer
-- **repository/**: Data access and business logic
-- **ui/**: Compose UI components and screens
-- **ui/dialog/**: Reusable dialog components
-- **ui/theme/**: Theming, colors and typography
-- **util/**: Utility functions and helper classes
-- **dao/**: Data Access Objects for Room
-- **room/**: Room database configuration
-- **routes/**: Navigation route definitions
-
-## Conclusion
-
-AgroSphere provides a comprehensive solution for monitoring and controlling agricultural environments. Its architecture emphasizes efficiency, responsiveness, and reliability through smart caching, real-time updates, and fallback mechanisms. The application is designed to work seamlessly in both online and offline scenarios, providing users with valuable insights into their growing environment and precise control over climate conditions.
-
-## ESP32 Firmware and Firebase Communication
-
-The AgroSphere system uses an ESP32 microcontroller as the hardware interface between sensors, actuators, and the Firebase Realtime Database. The ESP32 firmware handles data collection, processing, transmission, and control logic execution based on settings received from the Android application.
-
-### Hardware Components
-
-The ESP32 interfaces with the following hardware components:
-
-#### Sensors
-- **DHT11**: Temperature and humidity monitoring
-- **MQ135**: Carbon dioxide (CO2) measurement
-- **BH1750**: Light intensity measurement
-- **Float Switch**: Water level detection
-- **DS18B20**: Water temperature measurement
-- **PH4502C**: pH level measurement
-- **TDS/EC Sensor**: Total Dissolved Solids measurement
-
-#### Actuators
-- **Ventilation Servo**: Controls greenhouse vent opening/closing
-- **Fan Relay**: Controls circulation fan
-- **Mist Pump Relay**: Controls hydroponic misting system
-
-#### Physical Construction
-- **ESP32 Development Board**: Main microcontroller
-- **Prototype PCB**: For sensor and actuator connections
-- **12V Power Supply**: Powering the system and actuators
-- **3.3V/5V Regulators**: For sensor power requirements
-- **Relay Module**: For high-current actuator control
-- **Waterproof Enclosure**: For protecting electronics
-
-### Pin Configuration
-
-```cpp
-//Sensor declarations
-constexpr int mqPin = 34;      // MQ135 CO2 sensor
-constexpr int lightPin = 21;    // BH1750 I2C interface
-constexpr int wlPin = 19;       // Float switch water level
-constexpr int wtPin = 23;       // DS18B20 water temperature
-constexpr int phPin = 33;       // PH4502C pH sensor
-constexpr int tdsPin = 32;      // TDS/EC sensor
-constexpr int dhtPin = 12;      // DHT11 temperature/humidity
-
-//Actuator declarations
-constexpr int fanPin = 18;      // Fan relay control
-constexpr int mistPin = 17;     // Mist pump relay control
-constexpr int ventPin = 13;     // Servo motor for ventilation
-```
-
-### Firebase Communication Protocol
-
-The ESP32 communicates with the Android application through Firebase Realtime Database, which serves as the central communication hub. The communication follows this pattern:
-
-#### Authentication Flow
-1. ESP32 connects to WiFi network
-2. Authenticates with Firebase using email/password credentials
-3. Receives authentication tokens for secure database access
-4. Establishes persistent connection to the Realtime Database
-
-#### Data Upload Cycle
-1. ESP32 reads all sensor values at regular intervals (20 seconds)
-2. Processes raw sensor readings into standardized units
-3. Uploads current sensor values to `/sensorData` node
-4. Periodically (every 60 seconds) creates timestamped entries in `/sensorHistory` node
-
-#### Control Signal Reception
-1. ESP32 monitors the `/actuatorStates` and `/sensorRanges` nodes for changes
-2. Reads control mode setting (`auto` boolean value)
-3. In manual mode: reads and applies actuator states directly
-4. In automatic mode: uses sensor range thresholds to determine actuator states
-
-### Firebase Database Structure Used by ESP32
-
-```
-│
-├── actuatorStates
-│   ├── auto: boolean     // Control mode (automatic vs manual)
-│   ├── fan: boolean      // Fan state
-│   ├── mist: boolean     // Mist system state
-│   └── vent: boolean     // Ventilation state
-│
-├── sensorData            // Current sensor readings
-│   ├── carbonDioxide: number
-│   ├── humidity: number
-│   ├── lightLevel: number
-│   ├── pH: number
-│   ├── temperature: number
-│   ├── timestamp: number
-│   ├── tds: number
-│   ├── waterLevel: boolean
-│   └── waterTemp: number
-│
-├── sensorHistory         // Historical time-series data
-│   ├── m{timestamp}-{random}    // Unique ID for each entry
-│   │   ├── carbonDioxide: number
-│   │   ├── humidity: number
-│   │   ├── lightLevel: number
-│   │   ├── pH: number
-│   │   ├── temperature: number
-│   │   ├── timestamp: number
-│   │   ├── tds: number
-│   │   ├── waterLevel: boolean
-│   │   └── waterTemp: number
-│   └── ...
-│
-└── sensorRanges          // Threshold settings for automatic control
-    ├── humRangeHigh: number
-    ├── humRangeLow: number
-    ├── preset: string
-    ├── tempRangeHigh: number
-    └── tempRangeLow: number
-```
-
-### Control Logic
-
-The ESP32 firmware implements two control modes:
-
-#### Manual Mode
-When `actuatorStates/auto` is set to `false`:
-- ESP32 directly applies the boolean values from Firebase:
-  - `actuatorStates/fan` controls fan state
-  - `actuatorStates/mist` controls mist pump state
-  - `actuatorStates/vent` controls ventilation servo position
-
-#### Automatic Mode
-When `actuatorStates/auto` is set to `true`, the ESP32 implements climate control logic:
-
-1. **Temperature Control Logic**
-   - If temperature > `tempRangeHigh`:
-     - Activate fan and open ventilation
-     - If humidity < `humRangeLow`, activate mist for evaporative cooling
-   - If temperature < `tempRangeLow`:
-     - No cooling required
-     - Control humidity as needed
-
-2. **Humidity Control Logic**
-   - If humidity < `humRangeLow`:
-     - Activate mist system to increase humidity
-   - If humidity > `humRangeHigh`:
-     - Activate fan and open ventilation to reduce humidity
-
-3. **Hysteresis Implementation**
-   - Temperature margin: ±1.0°C around thresholds
-   - Humidity margin: ±2.0% around thresholds
-   - 2-second minimum delay between state changes
-   - Prevents oscillation and rapid cycling of actuators
-   - Extends equipment life and improves climate stability
-
-#### Mist Pump Safety Cycle
-To prevent overheating and equipment damage:
-- When activated, mist pump runs for maximum 2 minutes
-- After running, enforces 5-minute cooldown period
-- Automatically manages duty cycle during extended operation
-
-### Data Flow Between ESP32 and Android App
-
-```
-┌─────────────┐                  ┌──────────────────┐                  ┌──────────────┐
-│             │  1. Read Sensors │                  │  5. Read Data    │              │
-│             │─────────────────►│                  │◄─────────────────│              │
-│             │                  │                  │                  │              │
-│             │  2. Process Data │                  │  6. Display in   │              │
-│    ESP32    │─────────────────►│  Firebase        │─────────────────►│  Android App │
-│ Microcontrol│                  │  Realtime        │                  │              │
-│    Board    │  3. Upload Data  │  Database        │  7. User Control │              │
-│             │─────────────────►│                  │◄─────────────────│              │
-│             │                  │                  │                  │              │
-│             │  4. Read Settings│                  │  8. Save Settings│              │
-│             │◄─────────────────│                  │◄─────────────────│              │
-└─────────────┘                  └──────────────────┘                  └──────────────┘
-```
-
-1. **ESP32 to Firebase**:
-   - Current sensor readings → `/sensorData` node (20-second intervals)
-   - Historical sensor data → `/sensorHistory/{uniqueID}` (60-second intervals)
-   - Actuator states in auto mode → `/actuatorStates/*` (real-time updates)
-
-2. **Firebase to ESP32**:
-   - Control mode setting → `actuatorStates/auto` (polled every 1 second)
-   - Manual actuator controls → `actuatorStates/{fan|mist|vent}` (polled every 1 second)
-   - Climate thresholds → `sensorRanges/*` (polled every 1 second)
-
-3. **Firebase to Android App**:
-   - Current sensor data → Real-time listeners on `/sensorData`
-   - Actuator states → Real-time listeners on `/actuatorStates/*`
-   - Historical data → Query-based fetching from `/sensorHistory`
-   - Climate thresholds → Real-time listeners on `/sensorRanges/*`
-
-4. **Android App to Firebase**:
-   - User control inputs → Updates to `/actuatorStates/*`
-   - Climate threshold settings → Updates to `/sensorRanges/*`
-
-### Implementation Highlights
-
-#### Fault Tolerance Features
-- WiFi reconnection handling
-- Firebase authentication refresh
-- Sensor error detection and default values
-- Watchdog timers to prevent system hangs
-
-#### Memory Optimization
-- Efficient string handling to prevent heap fragmentation
-- Strategic use of static variables for repetitive operations
-- Buffer management for sensors with multiple readings
-
-#### Time Synchronization
-- NTP time server synchronization
-- Server-generated timestamps for consistent time records
-- Millisecond precision for analytical accuracy
-
-### Testing and Simulation Mode
-
-The firmware includes a testing mode that can generate simulated sensor data:
-
-```cpp
-void updateMockSensorValues() {
-  temperature = mockSensorValue(prevTemperature, 25.0, 27.0, 0.1);
-  humidity = mockSensorValue(prevHumidity, 65.0, 70.0, 0.2);
-  carbonDioxide = mockSensorValue(prevCarbonDioxide, 970.0, 1020.0, 5.0);
-  lightLevel = mockSensorValue(prevLightLevel, 880.0, 1023.0, 10.0);
-  float mockWater = mockSensorValue(prevWaterLevel, 10.0, 30.0, 1.0);
-  waterLevel = (mockWater > 15.0);
-  waterTemp = mockSensorValue(prevWaterTemp, 20.0, 25.0, 0.1);
-  pH = mockSensorValue(prevPH, 6.0, 7.0, 0.05);
-  tds = mockSensorValue(prevTDS, 0.8, 2.2, 0.05);
+## 2. Architecture
+
+The system employs a multi-tier architecture:
+
+1.  **Mobile Application Tier (Android)**:
+    *   Built using Kotlin and Jetpack Compose with the MVVM (Model-View-ViewModel) pattern.
+    *   Provides user interface for monitoring, control, and configuration.
+    *   Handles user authentication and interacts with Firebase.
+    *   Manages local data caching and notifications.
+
+2.  **Cloud Service Tier (Firebase)**:
+    *   **Realtime Database**: Central hub for data storage, synchronization, and communication between the mobile app and the ESP32. Stores current sensor data, historical logs, actuator states, and configuration settings.
+    *   **Authentication**: Manages user sign-in (Email/Password, Google Sign-In) and secures database access.
+    *   **Server Timestamps**: Ensures consistent time records across the system.
+
+3.  **Hardware Control Tier (ESP32)**:
+    *   ESP32 microcontroller interfaces with sensors and actuators.
+    *   Acquires sensor data (temperature, humidity, CO₂, light, pH, TDS, water level, water temp).
+    *   Executes control logic for actuators (fan, mist pump, vent servo) based on manual commands or automatic thresholds.
+    *   Communicates securely with Firebase Realtime Database via WiFi.
+
+This architecture facilitates real-time data flow, responsive control, and clear separation of concerns.
+
+## 3. Technology Stack
+
+### 3.1. Mobile Application (Android)
+
+*   **Programming Language**: Kotlin
+*   **UI Framework**: Jetpack Compose (Material 3)
+*   **Architecture**: MVVM
+*   **Asynchronous Operations**: Kotlin Coroutines & Flow
+*   **Backend Integration**: Firebase Realtime Database, Firebase Authentication
+*   **Local Storage**: Room Database (for notifications), DataStore Preferences (for settings)
+*   **Charting**: MPAndroidChart (`v3.1.0`)
+*   **Navigation**: Navigation Compose (`2.8.6`)
+*   **Build System**: Gradle with Kotlin DSL
+*   **Minimum SDK**: 29 (Android 10)
+*   **Target SDK**: 35 (Android 14+)
+*   **Compose Compiler Version**: `1.5.15`
+
+### 3.2. Hardware Control System (ESP32)
+
+*   **Microcontroller**: ESP32-WROOM (Dual-core, WiFi/BLE)
+*   **Programming Language**: C++ (Arduino Framework)
+*   **Cloud Integration**: Firebase Arduino Client Library (`FirebaseClient.h`)
+*   **Connectivity**: WiFi (WPA2/PSK) with SSL/TLS (using Root CA)
+*   **Sensor Libraries**: `DHT.h`, `OneWire.h`, `DallasTemperature.h`, `BH1750.h`, `Wire.h`
+*   **Actuator Libraries**: `ESP32Servo.h`
+*   **Time Synchronization**: NTP (Network Time Protocol) via `time.h`
+
+## 4. Core Components
+
+### 4.1. Mobile Application Components
+
+#### 4.1.1. Models (`com.fsvdevs.agrosphere.models`)
+
+*   **`SensorData`**: Represents sensor readings (temperature, humidity, carbonDioxide, lightLevel, pH, tds, waterLevel, waterTemp, timestamp).
+*   **`ActuatorData`**: Represents actuator states (fan, mist, vent, auto mode).
+*   **`SensorRangeData`**: Stores configured thresholds (tempRangeLow/High, humRangeLow/High, preset name).
+*   **`NotificationData`**: Represents a notification entry stored locally (title, message, timestamp).
+
+#### 4.1.2. Repositories (`com.fsvdevs.agrosphere.repository`)
+
+*   **`SensorDataRepository`**: Manages fetching and caching (memory, SharedPreferences) of current and historical sensor data from Firebase. Handles time-range filtering and incremental updates. Detects database changes.
+*   **`ActuatorDataRepository`**: Manages fetching and updating actuator states in Firebase. Listens for real-time changes.
+*   **`SensorRangeDataRepository`**: Manages fetching and updating sensor range thresholds and presets in Firebase. Listens for real-time changes.
+*   **`NotificationRepository`**: Manages local storage (Room DB) of notification history.
+
+#### 4.1.3. ViewModels (`com.fsvdevs.agrosphere.viewmodel`)
+
+*   **`SensorDataViewModel`**: Exposes sensor data (current and historical) as `StateFlow` to the UI. Handles data fetching logic based on time ranges, loading states, and error reporting. Refreshes data based on repository changes.
+*   **`ActuatorDataViewModel`**: Exposes actuator states as `StateFlow`. Provides methods to update actuator states.
+*   **`SensorRangeDataViewModel`**: Exposes sensor range settings as `StateFlow`. Provides methods to update thresholds and presets.
+
+#### 4.1.4. UI Screens (`com.fsvdevs.agrosphere.ui`)
+
+*   **`SplashScreen`**: Initial loading screen.
+*   **`LoginScreen`**: Handles user authentication (Email/Password, Google Sign-In).
+*   **`DashboardScreen`**: Displays current sensor readings, actuator controls, mode switch, and preset/range settings.
+*   **`MonitorScreen`**: Visualizes historical sensor data using line charts (MPAndroidChart) with time range selection (Hour, Day, Week, Month, Year). Includes refresh functionality.
+*   **`NotificationsScreen`**: Displays a list of past alert notifications stored locally. Allows clearing notifications.
+*   **`PreferenceScreen`**: Allows users to configure app settings (Theme, Dynamic Color), view app information, and access privacy policy/terms.
+
+#### 4.1.5. Utilities (`com.fsvdevs.agrosphere.util`)
+
+*   **`FirebaseHelper`**: Initializes Firebase services (Auth, Database).
+*   **`AuthHelper`**: Handles Google Sign-In logic.
+*   **`NotificationHelper`**: Manages creation of notification channels, sending notifications, grouping, cooldown logic, and permission requests (Android 13+).
+*   **`ViewModelFactory`**: Provides instances of ViewModels with their dependencies.
+*   **`PreferencesManager`**: Manages app preferences (theme, dynamic color) using DataStore.
+*   **`DensityHelper`**: Adjusts UI density for accessibility.
+*   **`TextLogo`**: Composable for displaying the app logo.
+
+### 4.2. ESP32 Firmware Modules (`AGROSPHERE_PROD.ino`)
+
+*   **Initialization (`setup`)**: Configures WiFi, initializes sensors (DHT, DS18B20, BH1750, MQ135, PH4502C, TDS), actuators (Servo, Relays), Firebase connection, and authentication.
+*   **WiFi Management**: Handles connection (`WIFI_SSID`, `WIFI_PASSWORD`) and automatic reconnection with exponential backoff.
+*   **Firebase Communication**:
+    *   Secure connection using Root CA and `WiFiClientSecure`.
+    *   Authentication using User Email/Password (`API_KEY`, `USER_EMAIL`, `USER_PASSWORD`).
+    *   Uploads current sensor data to `/sensorData` (every 20s).
+    *   Uploads historical data to `/sensorHistory/{uniqueId}` (every 60s).
+    *   Fetches actuator states and control mode from `/actuatorStates`.
+    *   Fetches sensor thresholds from `/sensorRanges`.
+*   **Sensor Reading (`runSensors`, `read*` functions)**: Reads data from all connected sensors. Includes basic filtering/averaging (e.g., median filter for TDS, averaging for pH). Handles `NaN` or disconnected sensor values (returns 0.0).
+*   **Actuator Control (`handleActuators`, `controlActuatorAuto`, `ventServoControl`, `mistPumpControl`)**:
+    *   **Manual Mode**: Directly sets actuator states based on Firebase values.
+    *   **Automatic Mode**: Implements climate control logic based on temperature and humidity thresholds fetched from `/sensorRanges`. Includes hysteresis (±1.0°C temp, ±2.0% hum margins, 2s delay) to prevent rapid cycling.
+    *   **Mist Pump Safety**: Implements a duty cycle (max 2 min ON, required 5 min OFF) to prevent overheating.
+*   **Time Synchronization**: Uses `time.h` and NTP (`gmtOffset_sec`, `daylightOffset_sec`) for timestamps, although `timeStatusCB` currently uses a simpler uptime-based approximation for auth.
+*   **Mock Sensor Mode (`useMockValues`, `updateMockSensorValues`)**: Allows testing without physical sensors by generating simulated data.
+*   **Error Handling**: Basic error printing for Firebase operations (`printResult`, `printError`). WiFi reconnection logic. Restarts ESP32 after max WiFi reconnect attempts. Skips history upload if temp/humidity is 0.
+
+## 5. Key Features
+
+*   **Real-time Monitoring**: Live updates of sensor data (Temp, Humidity, CO₂, Light, pH, TDS, Water Level, Water Temp) displayed on the dashboard.
+*   **Historical Data Analysis**: Visualization of sensor trends over various time ranges (Hour to Year) using interactive charts.
+*   **Remote Actuator Control**: Manual toggling of Fan, Mist system, and Ventilation via the mobile app.
+*   **Automatic Climate Control**: ESP32 automatically manages actuators based on user-defined temperature and humidity thresholds to maintain optimal conditions. Includes hysteresis.
+*   **Preset Profiles**: Pre-defined threshold settings for common growth phases (Seedling, Vegetative, Flowering) and a "Manual Range" option.
+*   **Alert System**: Mobile app checks sensor values against thresholds and generates notifications (with cooldown) for critical conditions (Temp/Hum out of range, High CO₂, Low Light, pH out of range, Low Water Level). Notifications are stored locally.
+*   **Authentication**: Secure user login via Email/Password or Google Sign-In.
+*   **Caching**: Multi-level caching (memory, SharedPreferences) in the mobile app reduces Firebase reads and improves offline usability.
+*   **Adaptive UI**: Material 3 design with Light/Dark/System themes and Dynamic Color support (Android 12+). Scaled density for accessibility.
+*   **Fault Tolerance**: ESP32 includes WiFi reconnection logic. Mobile app handles offline scenarios using cached data.
+
+## 6. Firebase Realtime Database Schema
+
+```json
+{
+  "sensorData": {
+    "carbonDioxide": 985.50,
+    "humidity": 68.20,
+    "lightLevel": 950.00,
+    "pH": 6.75,
+    "temperature": 26.50,
+    "timestamp": { ".sv": "timestamp" }, // Server-side timestamp
+    "tds": 1.50,
+    "waterLevel": true,
+    "waterTemp": 23.80
+  },
+  "sensorHistory": {
+    "m1678886400000-AbCdEfGh": { // Example unique ID: m{millis}-{random}
+      "carbonDioxide": 980.00,
+      "humidity": 67.90,
+      // ... other sensor values ...
+      "timestamp": { ".sv": "timestamp" }
+    },
+    // ... more historical entries ...
+  },
+  "actuatorStates": {
+    "auto": true, // Control mode (true = auto, false = manual)
+    "fan": false,
+    "mist": false,
+    "vent": false // Represents vent open (true) or closed (false)
+  },
+  "sensorRanges": {
+    "humRangeHigh": 70.0,
+    "humRangeLow": 60.0,
+    "preset": "Seedling Phase", // e.g., "Seedling Phase", "Manual Range"
+    "tempRangeHigh": 24.0,
+    "tempRangeLow": 18.0
+  }
 }
 ```
 
-This allows for system testing without physical sensors and provides a consistent data stream for application development and demonstration purposes.
+## 7. Data Flow
 
-## Project
-1. **ESP32 to Firebase**:
-   - Current sensor readings → `/sensorData` node (20-second intervals)
-   - Historical sensor data → `/sensorHistory/{uniqueID}` (60-second intervals)
-   - Actuator states in auto mode → `/actuatorStates/*` (real-time updates)
+1.  **Sensor Data (ESP32 → Firebase → App)**:
+    *   ESP32 reads sensors (`runSensors`).
+    *   Uploads current data to `/sensorData` (20s interval).
+    *   Uploads historical data to `/sensorHistory/{uniqueId}` (60s interval).
+    *   Mobile app's `SensorDataRepository` listens to `/sensorData` for real-time updates.
+    *   `SensorDataViewModel` processes data for UI (`DashboardScreen`).
+    *   `MonitorScreen` fetches historical data from `/sensorHistory` via `SensorDataRepository` based on selected time range.
 
-2. **Firebase to ESP32**:
-   - Control mode setting → `actuatorStates/auto` (polled every 1 second)
-   - Manual actuator controls → `actuatorStates/{fan|mist|vent}` (polled every 1 second)
-   - Climate thresholds → `sensorRanges/*` (polled every 1 second)
+2.  **User Control (App → Firebase → ESP32)**:
+    *   User interacts with controls on `DashboardScreen`.
+    *   `ActuatorDataViewModel` calls `ActuatorDataRepository` to update `/actuatorStates` (e.g., toggling `fan`, `mist`, `vent`, or `auto`).
+    *   ESP32 reads `/actuatorStates` (1s interval).
+    *   If in manual mode (`auto: false`), ESP32 applies the states directly (`handleActuators`).
+    *   If in auto mode (`auto: true`), ESP32 ignores manual states and uses its internal logic (`controlActuatorAuto`).
 
-3. **Firebase to Android App**:
-   - Current sensor data → Real-time listeners on `/sensorData`
-   - Actuator states → Real-time listeners on `/actuatorStates/*`
-   - Historical data → Query-based fetching from `/sensorHistory`
-   - Climate thresholds → Real-time listeners on `/sensorRanges/*`
+3.  **Configuration (App → Firebase → ESP32)**:
+    *   User changes thresholds or presets on `DashboardScreen` (via `PresetSelection` dialog).
+    *   `SensorRangeDataViewModel` calls `SensorRangeDataRepository` to update `/sensorRanges`.
+    *   ESP32 reads `/sensorRanges` (1s interval) and uses these thresholds in automatic mode.
 
-4. **Android App to Firebase**:
-   - User control inputs → Updates to `/actuatorStates/*`
-   - Climate threshold settings → Updates to `/sensorRanges/*`
+4.  **Alerts (App-Side Logic)**:
+    *   `MainActivity` observes `sensorData` and `sensorRangeData` from ViewModels.
+    *   `checkSensorValuesAndNotify` function compares current `sensorData` against `sensorRangeData` thresholds.
+    *   If a threshold is violated, `NotificationHelper` sends a system notification (respecting cooldown).
+    *   `NotificationRepository` saves the alert to the local Room database.
+    *   `NotificationsScreen` displays alerts from the local database.
 
-### Implementation Highlights
+## 8. ESP32 Firmware Details
 
-#### Fault Tolerance Features
-- WiFi reconnection handling
-- Firebase authentication refresh
-- Sensor error detection and default values
-- Watchdog timers to prevent system hangs
+*   **Pin Configuration**:
+    *   DHT11: Pin 12
+    *   MQ135 (CO₂): Pin 34 (Analog)
+    *   BH1750 (Light): I2C (SDA: 21, SCL: 22)
+    *   Float Switch (Water Level): Pin 19 (Input Pullup)
+    *   DS18B20 (Water Temp): Pin 23 (OneWire)
+    *   PH4502C (pH): Pin 33 (Analog)
+    *   TDS/EC: Pin 32 (Analog)
+    *   Fan Relay: Pin 18 (Output)
+    *   Mist Pump Relay: Pin 17 (Output)
+    *   Vent Servo: Pin 13 (PWM Output)
+*   **Control Logic**: See `controlActuatorAuto` for automatic mode logic with hysteresis. Manual mode directly reflects Firebase states.
+*   **Safety Features**: Mist pump duty cycle (2 min ON / 5 min OFF). Hysteresis prevents rapid actuator switching.
+*   **Fault Tolerance**:
+    *   **WiFi Auto-Reconnect**: Attempts reconnection upon disconnection using `WiFi.reconnect()`. If connection fails repeatedly, the system might enter a loop or eventually restart depending on surrounding logic, but currently, it keeps trying every 5 seconds while offline.
+    *   **Power Interruption**: The system relies on the external solar power system with battery backup. If main power and battery fail, the ESP32 will shut down. Upon power restoration, the ESP32 reboots, automatically reconnects to WiFi, re-authenticates with Firebase, fetches the latest states/settings, and resumes operation. No operational state is saved locally on the ESP32 across power cycles, except for data stored in SPIFFS.
+    *   **Network Outage**: When WiFi disconnects (`isOffline = true`), the ESP32 continues operating locally.
+        *   It forces `isAuto = true`, running `controlActuatorAuto` using the last known thresholds fetched from `/sensorRanges`.
+        *   Sensor readings continue (`runSensors`).
+        *   Firebase uploads (`setSensorData`, `uploadSensorDataToRealtimeDatabase`) are skipped.
+        *   Fetching new settings (`/sensorRanges`, `/actuatorStates/auto`) is paused.
+        *   Historical sensor data that fails to upload is saved locally to SPIFFS (`saveDataLocally`).
+        *   Upon reconnection, `uploadOfflineHistory` attempts to upload the stored data from SPIFFS.
+    *   **Sensor Failure**: Sensor reading functions (`read*`) return `0.0` or a specific error code (e.g., `DEVICE_DISCONNECTED_C` for DS18B20) if a sensor fails or returns `NaN`.
+        *   The system prevents uploading historical data if `temperature` or `humidity` is `0.0` (`uploadSensorDataToRealtimeDatabase`).
+        *   The automatic control logic (`controlActuatorAuto`) might be affected if it relies on a failed sensor reading (now `0.0`), potentially leading to incorrect actuator states (e.g., turning on mist unnecessarily if humidity reads 0). However, the system continues to operate with the remaining sensors.
+*   **Memory**: Basic `Serial.println(ESP.getFreeHeap())` for monitoring. Offline history is stored in SPIFFS, managing potential memory constraints for long offline periods.
+*   **Time Sync**: Configured for NTP but `timeStatusCB` uses a simpler approximation for auth. Server timestamps (`{ ".sv": "timestamp" }`) used for data logging ensure consistency regardless of ESP32 time accuracy.
 
-#### Memory Optimization
-- Efficient string handling to prevent heap fragmentation
-- Strategic use of static variables for repetitive operations
-- Buffer management for sensors with multiple readings
+## 9. Mobile Application Details
 
-#### Time Synchronization
-- NTP time server synchronization
-- Server-generated timestamps for consistent time records
-- Millisecond precision for analytical accuracy
+*   **MVVM Implementation**: Clear separation of UI (Compose), State/Logic (ViewModels), and Data Handling (Repositories).
+*   **Caching**: `SensorDataRepository` uses `ConcurrentHashMap` for memory cache and `SharedPreferences` for persistent cache, reducing Firebase dependency.
+*   **UI**: Built entirely with Jetpack Compose and Material 3, providing a modern and responsive interface. Uses `MPAndroidChart` for historical data visualization.
+*   **Navigation**: Single-Activity architecture using Navigation Compose for screen transitions.
+*   **Notifications**: Uses Android's `NotificationManagerCompat`, notification channels, grouping, and handles Android 13+ permission requests. Includes cooldown logic.
+*   **Theming**: Supports Light/Dark/System themes and Material You dynamic colors via `AgroSphereTheme` and `PreferencesManager`.
 
-### Testing and Simulation Mode
+## 10. Build Configuration
 
-The firmware includes a testing mode that can generate simulated sensor data:
+*   **Gradle Version**: AGP `8.7.3`
+*   **Kotlin Version**: `2.1.0-Beta2`
+*   **Key Dependencies**: See `libs.versions.toml` and `app/build.gradle.kts`. Includes Compose BOM, Firebase BOM, Room, DataStore, Navigation, MPAndroidChart, Play Services Auth.
+*   **Version**: `1.50` (Build `519`) <!-- Adjusted version to match ESP code header -->
 
-```cpp
-void updateMockSensorValues() {
-  temperature = mockSensorValue(prevTemperature, 25.0, 27.0, 0.1);
-  humidity = mockSensorValue(prevHumidity, 65.0, 70.0, 0.2);
-  carbonDioxide = mockSensorValue(prevCarbonDioxide, 970.0, 1020.0, 5.0);
-  lightLevel = mockSensorValue(prevLightLevel, 880.0, 1023.0, 10.0);
-  float mockWater = mockSensorValue(prevWaterLevel, 10.0, 30.0, 1.0);
-  waterLevel = (mockWater > 15.0);
-  waterTemp = mockSensorValue(prevWaterTemp, 20.0, 25.0, 0.1);
-  pH = mockSensorValue(prevPH, 6.0, 7.0, 0.05);
-  tds = mockSensorValue(prevTDS, 0.8, 2.2, 0.05);
-}
+## 11. Project Structure
+
+```
+app/
+├── src/
+│   ├── main/
+│   │   ├── java/com/fsvdevs/agrosphere/
+│   │   │   ├── dao/              # Room Database DAOs (NotificationDao)
+│   │   │   ├── models/           # Data classes (SensorData, ActuatorData, etc.)
+│   │   │   ├── repository/       # Data repositories (SensorDataRepository, etc.)
+│   │   │   ├── room/             # Room Database setup (AppDatabase)
+│   │   │   ├── routes/           # Navigation routes definition (Routes)
+│   │   │   ├── ui/               # Composable UI screens and components
+│   │   │   │   ├── dialog/       # Reusable dialog composables
+│   │   │   │   └── theme/        # Theming (Color, Shape, Theme, Type)
+│   │   │   ├── util/             # Utility classes (FirebaseHelper, NotificationHelper, etc.)
+│   │   │   ├── viewmodel/        # ViewModels
+│   │   │   └── MainActivity.kt   # Main entry point activity
+│   │   ├── res/                  # Android resources (drawables, layouts, etc.)
+│   │   └── AndroidManifest.xml
+│   └── ...
+├── build.gradle.kts              # App-level build script
+└── ...
+build.gradle.kts                  # Project-level build script
+gradle/libs.versions.toml         # Dependency versions catalog
+README.md                         # This file
+...                               # Other project files (.gitignore, etc.)
 ```
 
-This allows for system testing without physical sensors and provides a consistent data stream for application development and demonstration purposes.
- Structure
+## 12. Conclusion
 
-- **models/**: Data classes representing domain entities
-- **viewmodel/**: ViewModels connecting UI with data layer
-- **repository/**: Data access and business logic
-- **ui/**: Compose UI components and screens
-- **ui/dialog/**: Reusable dialog components
-- **ui/theme/**: Theming, colors and typography
-- **util/**: Utility functions and helper classes
-- **dao/**: Data Access Objects for Room
-- **room/**: Room database configuration
-- **routes/**: Navigation route definitions
-
-## Conclusion
-
-AgroSphere provides a comprehensive solution for monitoring and controlling agricultural environments. The integrated system combines mobile application technology with IoT hardware control through ESP32 microcontrollers, creating a seamless experience for greenhouse management. Its architecture emphasizes efficiency, responsiveness, and reliability through smart caching, real-time updates, and fallback mechanisms. Both the mobile application and ESP32 firmware are designed to work together seamlessly in both online and offline scenarios, providing users with valuable insights into their growing environment and precise control over climate conditions.
+AgroSphere provides a comprehensive IoT solution for greenhouse monitoring and control, integrating a user-friendly mobile application with robust hardware control via an ESP32 and Firebase cloud services. The system leverages real-time data, automated control logic with safety features, and efficient data management to optimize growing conditions. Its modular architecture and use of modern technologies make it a scalable and adaptable platform for smart agriculture applications.
