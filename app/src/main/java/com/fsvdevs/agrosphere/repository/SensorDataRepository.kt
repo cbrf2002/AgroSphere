@@ -46,6 +46,9 @@ class SensorDataRepository(
     private val _sensorData = MutableStateFlow<SensorData?>(null)
     val sensorData: StateFlow<SensorData?> = _sensorData
 
+    private var isSensorDataListenerAttached = false // Flag for sensorData listener
+    private var isHistoryListenerAttached = false // Flag for history listener
+
     // Add a listener for sensorHistory node to detect changes including deletions
     private val historyChangeListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
@@ -68,6 +71,7 @@ class SensorDataRepository(
 
     private val sensorDataListener = object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
+            Log.d(tagSensorDataRepository, "Sensor data listener received update.") // Log listener activity
             val currentTime = System.currentTimeMillis()
 
             if (currentTime - lastDataChangeTime >= 5000) { // Reduced cooldown to 5 seconds
@@ -84,36 +88,56 @@ class SensorDataRepository(
             }
         }
 
-        private fun isCompleteSensorData(sensorData: SensorData): Boolean {
-            return sensorData.humidity >= 0.0 &&
-                    sensorData.lightLevel >= 0.0 &&
-                    sensorData.pH >= 0.0 &&
-                    sensorData.temperature >= -20.0 &&
-                    sensorData.waterTemp >= 0.0 &&
-                    sensorData.tds >= 0.0
-        }
-
         override fun onCancelled(error: DatabaseError) {
             Log.e(tagSensorDataRepository, "Failed to fetch sensor data", error.toException())
         }
     }
 
-    init {
-        startListeningForSensorData()
-        startListeningForHistoryChanges()
+    private fun isCompleteSensorData(sensorData: SensorData): Boolean {
+        Log.d(tagSensorDataRepository, "Checking sensor data: $sensorData")
+        return sensorData.humidity >= 0.0 &&
+                sensorData.lightLevel >= 0.0 &&
+                sensorData.pH >= 0.0 &&
+                sensorData.temperature >= -20.0 &&
+                sensorData.waterTemp >= 0.0 &&
+                sensorData.tds >= 0.0
     }
 
-    private fun startListeningForSensorData() {
+    // Make public and add check
+    fun startListeningForSensorData() {
+        if (isSensorDataListenerAttached) {
+             Log.d(tagSensorDataRepository, "Sensor data listener already attached.")
+            return
+        }
         database.child("sensorData").addValueEventListener(sensorDataListener)
+        isSensorDataListenerAttached = true
+        Log.d(tagSensorDataRepository, "Started listening for sensor data.")
     }
     
-    private fun startListeningForHistoryChanges() {
+    // Add check for history listener too for consistency
+    fun startListeningForHistoryChanges() {
+        if (isHistoryListenerAttached) {
+            Log.d(tagSensorDataRepository, "History listener already attached.")
+            return
+        }
+        // Use limitToLast(1) to only detect *new* entries efficiently
         database.child("sensorHistory").limitToLast(1).addValueEventListener(historyChangeListener)
+        isHistoryListenerAttached = true
+        Log.d(tagSensorDataRepository, "Started listening for history changes.")
     }
-
     fun stopListeningForSensorData() {
-        database.child("sensorData").removeEventListener(sensorDataListener)
-        database.child("sensorHistory").removeEventListener(historyChangeListener)
+        // Check listener before removing
+        if (isSensorDataListenerAttached) {
+            database.child("sensorData").removeEventListener(sensorDataListener)
+            isSensorDataListenerAttached = false // Reset flag
+            Log.d(tagSensorDataRepository, "Stopped listening for sensor data.")
+        }
+        // Check history listener before removing
+        if (isHistoryListenerAttached) {
+             database.child("sensorHistory").removeEventListener(historyChangeListener)
+             isHistoryListenerAttached = false // Reset flag
+             Log.d(tagSensorDataRepository, "Stopped listening for history changes.")
+        }
     }
 
     suspend fun getSensorHistoryByTimePeriod(periodInMillis: Long, forceRefresh: Boolean = false): List<SensorData> {
@@ -371,5 +395,27 @@ class SensorDataRepository(
         saveCacheVersion(1L)
         _databaseChangeDetected.value = false
         Log.d(tagSensorDataRepository, "All cached data cleared, cache version reset")
+    }
+    
+    suspend fun fetchCurrentSensorData() {
+        try {
+            val snapshot = database.child("sensorData").get().await()
+            if (snapshot.exists()) {
+                val data = snapshot.getValue(SensorData::class.java)
+                data?.let {
+                    if (isCompleteSensorData(it)) { // Reuse the validation logic
+                        _sensorData.value = it
+                        saveLastDataTimestamp(it.timestamp) // Update last timestamp if needed
+                        Log.d(tagSensorDataRepository, "Fetched current sensor data: $it")
+                    } else {
+                        Log.w(tagSensorDataRepository, "Fetched incomplete current sensor data: $it")
+                    }
+                }
+            } else {
+                Log.w(tagSensorDataRepository, "No current sensor data found at 'sensorData'")
+            }
+        } catch (e: Exception) {
+            Log.e(tagSensorDataRepository, "Failed to fetch current sensor data", e)
+        }
     }
 }

@@ -16,7 +16,6 @@ class SensorRangeDataViewModel(private val repository: SensorRangeDataRepository
 
     init {
         loadSensorRangeData()
-        repository.startListening()
     }
 
     override fun onCleared() {
@@ -24,10 +23,11 @@ class SensorRangeDataViewModel(private val repository: SensorRangeDataRepository
         repository.stopListening()
     }
 
-    private fun loadSensorRangeData() {
+    fun loadSensorRangeData() {
         viewModelScope.launch {
             Log.d(tag, "Loading sensor range data")
             repository.fetchSensorRangeData()
+            repository.startListening()
         }
     }
 
@@ -35,6 +35,11 @@ class SensorRangeDataViewModel(private val repository: SensorRangeDataRepository
         viewModelScope.launch {
             repository.updateSensorRangeData(newData)
         }
+    }
+
+    fun stopListeners() {
+        Log.d(tag, "Explicitly stopping sensor range listeners.")
+        repository.stopListening()
     }
 
     class Factory(private val repository: SensorRangeDataRepository) : ViewModelProvider.Factory {

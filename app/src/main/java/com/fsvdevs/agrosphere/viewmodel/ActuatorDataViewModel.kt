@@ -16,7 +16,6 @@ class ActuatorDataViewModel(private val repository: ActuatorDataRepository) : Vi
 
     init {
         loadActuatorData()
-        repository.startListening()
     }
 
     override fun onCleared() {
@@ -24,11 +23,18 @@ class ActuatorDataViewModel(private val repository: ActuatorDataRepository) : Vi
         repository.stopListening()
     }
 
-    private fun loadActuatorData() {
+    fun loadActuatorData() {
         viewModelScope.launch {
             Log.d(tag, "Loading actuator data")
             repository.fetchActuatorData()
+            // Start listener *after* initial fetch is complete
+            repository.startListening()
         }
+    }
+
+    fun stopListeners() {
+        Log.d(tag, "Explicitly stopping actuator listeners.")
+        repository.stopListening()
     }
 
     fun updateActuatorData(newData: ActuatorData) {

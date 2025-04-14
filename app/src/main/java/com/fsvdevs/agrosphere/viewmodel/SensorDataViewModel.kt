@@ -17,29 +17,30 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
 
     private val _sensorHistory = MutableStateFlow<List<SensorData>>(emptyList())
     val sensorHistory: StateFlow<List<SensorData>> = _sensorHistory
-    
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
-    
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
     // Track current range for refreshing
     private var currentTimeRange: String = "Hour"
     private val TAG = "SensorDataViewModel"
-    
+
     init {
-        // Listen for database changes and refresh data when needed
+        // Listen for database changes detected by history listener
         viewModelScope.launch {
             repository.databaseChangeDetected.collect { hasChanged ->
                 if (hasChanged) {
                     Log.d(TAG, "Database change detected, refreshing data")
-                    refreshData(currentTimeRange)
+                    refreshData(currentTimeRange) // Refresh history
                 }
             }
         }
-        
+
         fetchSensorHistoryByRange("Hour")
+        loadCurrentSensorData()
     }
 
     fun fetchSensorHistoryByRange(timeRange: String, forceRefresh: Boolean = false) {
@@ -47,28 +48,28 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
             try {
                 _isLoading.value = true
                 _errorMessage.value = null
-                
+
                 // Always update current time range regardless of force refresh
                 currentTimeRange = timeRange
                 Log.d(TAG, "Fetching sensor history for range: $timeRange, forceRefresh: $forceRefresh")
-                
+
                 // Clear existing data immediately to ensure UI reflects loading state
                 if (forceRefresh) {
                     _sensorHistory.value = emptyList()
                 }
-                
+
                 val data = repository.getSensorHistoryByTimePeriod(
-                    getTimePeriodInMillis(timeRange), 
+                    getTimePeriodInMillis(timeRange),
                     forceRefresh
                 )
-                
+
                 if (data.isNotEmpty()) {
                     Log.d(TAG, "Loaded ${data.size} data points for $timeRange")
                     _sensorHistory.value = data
                     _errorMessage.value = null
                 } else {
                     Log.d(TAG, "No data available for $timeRange")
-                    
+
                     // For Hour view, try with extended time range
                     if (timeRange == "Hour") {
                         Log.d(TAG, "Trying extended range for Hour view")
@@ -76,7 +77,7 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
                             3600000L * 12, // Look back 12 hours instead of 1
                             forceRefresh
                         )
-                        
+
                         if (extendedData.isNotEmpty()) {
                             Log.d(TAG, "Loaded ${extendedData.size} points with extended range")
                             // Take the most recent entries up to a reasonable number
@@ -128,6 +129,22 @@ class SensorDataViewModel(private val repository: SensorDataRepository) : ViewMo
             Log.d(TAG, "Explicitly refreshing data for range: $rangeToRefresh")
             fetchSensorHistoryByRange(rangeToRefresh, true)
         }
+    }
+
+    fun loadCurrentSensorData() {
+        viewModelScope.launch {
+            Log.d(TAG, "Explicitly loading current sensor data.")
+            repository.fetchCurrentSensorData()
+            // Start sensor data listener *after* initial fetch is complete
+            repository.startListeningForSensorData()
+            // Start history listener here as well, ensuring both are started post-init fetch
+            repository.startListeningForHistoryChanges()
+        }
+    }
+
+    fun stopListeners() {
+        Log.d(TAG, "Explicitly stopping sensor data listeners.")
+        repository.stopListeningForSensorData()
     }
 
     override fun onCleared() {

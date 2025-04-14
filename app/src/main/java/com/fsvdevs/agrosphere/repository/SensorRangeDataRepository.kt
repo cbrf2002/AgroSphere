@@ -16,47 +16,39 @@ class SensorRangeDataRepository(private val database: DatabaseReference) {
     private val _sensorRangeData = MutableStateFlow<SensorRangeData?>(null)
     val sensorRangeData: StateFlow<SensorRangeData?> = _sensorRangeData
 
-    private var sensorRangeListener: ValueEventListener? = null
-
-    /**
-     * Starts listening to changes in the 'sensorRanges' node.
-     */
+    private var sensorRangeDataListener: ValueEventListener? = null
+    private var isListenerAttached = false // Flag to prevent multiple listeners
     fun startListening() {
-        if (sensorRangeListener == null) {
-            sensorRangeListener = object : ValueEventListener {
+        if (isListenerAttached) {
+            Log.d(tag, "Listener already attached to 'sensorRanges'.")
+            return // Avoid attaching multiple listeners
+        }
+        if (sensorRangeDataListener == null) {
+            sensorRangeDataListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.exists()) {
-                        val data = snapshot.getValue(SensorRangeData::class.java)
-                        _sensorRangeData.value = data
-                        Log.d(tag, "Fetched sensor range data: $data")
-                    } else {
-                        Log.w(tag, "No sensor range data found at 'sensorRanges'")
-                    }
+                    Log.d(tag, "Sensor range listener received update.") // Log listener activity
+                    val data = snapshot.getValue(SensorRangeData::class.java)
+                    _sensorRangeData.value = data
+                    Log.d(tag, "Sensor range data updated from listener: $data")
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e(tag, "Failed to listen for sensor range data changes", error.toException())
+                    Log.e(tag, "Failed to listen for sensor range data", error.toException())
                 }
             }
-            database.child("sensorRanges").addValueEventListener(sensorRangeListener!!)
-            Log.d(tag, "Started listening to 'sensorRanges'")
         }
+        database.child("sensorRanges").addValueEventListener(sensorRangeDataListener!!)
+        isListenerAttached = true
+        Log.d(tag, "Started listening to 'sensorRanges'")
     }
-
-    /**
-     * Stops listening to changes in the 'sensorRanges' node.
-     */
     fun stopListening() {
-        sensorRangeListener?.let {
+        sensorRangeDataListener?.let {
             database.child("sensorRanges").removeEventListener(it)
-            sensorRangeListener = null
+            isListenerAttached = false // Reset flag
             Log.d(tag, "Stopped listening to 'sensorRanges'")
         }
     }
 
-    /**
-     * Fetches sensor range data once.
-     */
     suspend fun fetchSensorRangeData() {
         try {
             val sensorRangeSnapshot = database.child("sensorRanges").get().await()
@@ -72,9 +64,6 @@ class SensorRangeDataRepository(private val database: DatabaseReference) {
         }
     }
 
-    /**
-     * Updates sensor range data in Firebase.
-     */
     suspend fun updateSensorRangeData(newData: SensorRangeData) {
         try {
             database.child("sensorRanges").setValue(newData).await()
