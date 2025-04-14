@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -20,12 +21,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.with
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +48,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -92,6 +96,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
 
 class MainActivity : ComponentActivity() {
     private lateinit var authStateListener: FirebaseAuth.AuthStateListener
@@ -174,6 +179,31 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            LaunchedEffect(isLoggedIn) {
+                if (isLoggedIn) {
+                    Log.d("MainActivity", "User logged in, triggering initial data load.")
+
+                    // Launch fetches concurrently
+                    val job1 = launch { sensorDataViewModel.loadCurrentSensorData() }
+                    val job2 = launch { sensorDataViewModel.refreshData() } // History
+                    val job3 = launch { actuatorDataViewModel.loadActuatorData() }
+                    val job4 = launch { sensorRangeDataViewModel.loadSensorRangeData() }
+
+                    // Wait for all initial fetches to complete
+                    joinAll(job1, job2, job3, job4)
+                    Log.d("MainActivity", "Initial data fetches complete.")
+
+                } else {
+                    // User logged out
+                    Log.d("MainActivity", "User logged out, stopping listeners.")
+                    // Explicitly stop listeners to ensure clean state for next login
+                    sensorDataViewModel.stopListeners()
+                    actuatorDataViewModel.stopListeners()
+                    sensorRangeDataViewModel.stopListeners()
+                    sensorDataViewModel.clearAllCaches() // Clear caches on logout
+                }
+            }
+
             LaunchedEffect(Unit) {
                 delay(1500)
                 showSplash = false
@@ -190,29 +220,50 @@ class MainActivity : ComponentActivity() {
                         when (targetState) {
                             true -> SplashScreen()
                             false -> {
-                                if (isLoggedIn) {
-                                    MainContent(
-                                        navController = navController,
-                                        currentRoute = currentRoute,
-                                        sensorData = sensorData,
-                                        actuatorData = actuatorData,
-                                        sensorRangeData = sensorRangeData,
-                                        sensorDataViewModel = sensorDataViewModel,
-                                        actuatorDataViewModel = actuatorDataViewModel,
-                                        sensorRangeDataViewModel = sensorRangeDataViewModel,
-                                        selectedTheme = selectedTheme,
-                                        dynamicColorEnabled = dynamicColorEnabled,
-                                        navigateTo = navigateTo,
-                                        saveThemePreference = { theme -> saveThemePreference(theme) },
-                                        saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
-                                    )
-                                } else {
-                                    LoginScreen(
-                                        onGoogleSignIn = { AuthHelper.signInWithGoogle(context as Activity, signInClient, googleSignInLauncher) },
-                                        onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(context, auth, email, password) },
-                                        onSignUp = { email, password -> AuthHelper.createAccount(context, auth, email, password) },
-                                        onForgotPassword = { email -> AuthHelper.resetPassword(context, auth, email) }
-                                    )
+                                Crossfade(targetState = isLoggedIn, label = "Auth Crossfade") { loggedIn ->
+                                    if (loggedIn) {
+                                        // Determine if all necessary data for the dashboard is loaded
+                                        val isDataReady = sensorData != null && actuatorData != null && sensorRangeData != null
+                                        Crossfade(targetState = isDataReady, label = "Data Load Crossfade") { dataReady ->
+                                            if (dataReady) {
+                                                // Data ready, show MainContent
+                                                key(isLoggedIn) {
+                                                    MainContent(
+                                                        navController = navController,
+                                                        currentRoute = currentRoute,
+                                                        sensorData = sensorData,
+                                                        actuatorData = actuatorData,
+                                                        sensorRangeData = sensorRangeData,
+                                                        sensorDataViewModel = sensorDataViewModel,
+                                                        actuatorDataViewModel = actuatorDataViewModel,
+                                                        sensorRangeDataViewModel = sensorRangeDataViewModel,
+                                                        selectedTheme = selectedTheme,
+                                                        dynamicColorEnabled = dynamicColorEnabled,
+                                                        navigateTo = navigateTo,
+                                                        saveThemePreference = { theme -> saveThemePreference(theme) },
+                                                        saveDynamicColorPreference = { isEnabled -> saveDynamicColorPreference(isEnabled) }
+                                                    )
+                                                }
+                                            } else {
+                                                // Data not ready yet, show loading indicator
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator()
+                                                }
+                                                Log.d("MainActivity", "Logged in but required data not ready (Sensor: ${sensorData!=null}, Actuator: ${actuatorData!=null}, Range: ${sensorRangeData!=null}), showing loading indicator.")
+                                            }
+                                        }
+                                    } else {
+                                        // Not logged in, show LoginScreen
+                                        LoginScreen(
+                                            onGoogleSignIn = { AuthHelper.signInWithGoogle(context as Activity, signInClient, googleSignInLauncher) },
+                                            onEmailSignIn = { email, password -> AuthHelper.signInWithEmail(context, auth, email, password) },
+                                            onSignUp = { email, password -> AuthHelper.createAccount(context, auth, email, password) },
+                                            onForgotPassword = { email -> AuthHelper.resetPassword(context, auth, email) }
+                                        )
+                                    }
                                 }
                             }
                         }
