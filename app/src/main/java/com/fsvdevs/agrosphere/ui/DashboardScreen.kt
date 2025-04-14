@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.*
@@ -31,18 +32,18 @@ import java.util.Date
 import java.util.Locale
 import kotlin.let
 import kotlin.math.roundToInt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 
 @Composable
 fun DashboardScreen(
     sensorData: SensorData?,
-    actuatorData: ActuatorData?,
+    actuatorData: ActuatorData?, // Keep collecting state here for display elsewhere if needed
     sensorRangeData: SensorRangeData?,
-    actuatorDataViewModel: ActuatorDataViewModel,
+    actuatorDataViewModel: ActuatorDataViewModel, // Pass ViewModel down
     sensorRangeDataViewModel: SensorRangeDataViewModel,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val isLoadingSensor = sensorData == null
-    val isLoadingActuator = actuatorData == null
 
     var tempRange = remember { mutableStateOf(0f..60f) }
     var humRange = remember { mutableStateOf(0f..100f) }
@@ -51,13 +52,7 @@ fun DashboardScreen(
     val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
     val currentDate = sdf.format(Date())
 
-    val isLoading = remember { mutableStateOf(true) }
-
-    LaunchedEffect(sensorData, actuatorData, sensorRangeData) {
-        if (!isLoadingSensor && !isLoadingActuator) {
-            isLoading.value = false
-        }
-
+    LaunchedEffect(sensorRangeData) {
         sensorRangeData?.let {
             if (it.preset == "Manual Range") {
                 tempRange.value = it.tempRangeLow.toFloat()..it.tempRangeHigh.toFloat()
@@ -73,6 +68,10 @@ fun DashboardScreen(
         }
     }
 
+    // Collect actuatorData state specifically for passing down if needed,
+    // but prefer accessing viewModel.actuatorData.value inside onClick
+    val currentActuatorData by actuatorDataViewModel.actuatorData.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -85,18 +84,20 @@ fun DashboardScreen(
 
         SensorDisplay(
             sensorData = sensorData,
-            isLoading = isLoading
+            isLoading = sensorData == null // Pass collected sensorData
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         DashboardControlCard(
-            actuatorData = actuatorData,
-            coroutineScope = coroutineScope,
-            sensorRangeDataViewModel = sensorRangeDataViewModel,
+            // Pass ViewModel directly
             actuatorDataViewModel = actuatorDataViewModel,
+            sensorRangeDataViewModel = sensorRangeDataViewModel,
+            // Pass collected states for display/initial values if needed
+            actuatorData = currentActuatorData, // Pass collected state for display
             tempRange = tempRange,
             humRange = humRange,
-            preset = preset
+            preset = preset,
+            coroutineScope = coroutineScope // Keep coroutineScope if needed for other async tasks
         )
     }
 }
@@ -105,7 +106,7 @@ fun DashboardScreen(
 fun DashboardHeader(
     currentDate: String
 ) {
-    Column( //Date and dashboard text
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -128,10 +129,10 @@ fun DashboardHeader(
 
 @Composable
 fun DashboardControlCard(
-    actuatorData: ActuatorData?,
-    coroutineScope: CoroutineScope,
+    actuatorDataViewModel: ActuatorDataViewModel, // Receive ViewModel
     sensorRangeDataViewModel: SensorRangeDataViewModel,
-    actuatorDataViewModel: ActuatorDataViewModel,
+    actuatorData: ActuatorData?, // Receive collected state for display
+    coroutineScope: CoroutineScope,
     tempRange: MutableState<ClosedFloatingPointRange<Float>>,
     humRange: MutableState<ClosedFloatingPointRange<Float>>,
     preset: MutableState<String>
@@ -152,9 +153,8 @@ fun DashboardControlCard(
             verticalArrangement = Arrangement.Top
         ) {
             ClimateControlSwitch(
-                actuatorData = actuatorData,
-                coroutineScope = coroutineScope,
-                actuatorDataViewModel = actuatorDataViewModel
+                actuatorDataViewModel = actuatorDataViewModel, // Pass ViewModel
+                actuatorData = actuatorData // Pass collected state for display
             )
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(
@@ -172,9 +172,10 @@ fun DashboardControlCard(
             )
 
             ActuatorButtonDisplay(
-                actuatorData = actuatorData,
-                coroutineScope = coroutineScope,
-                actuatorDataViewModel = actuatorDataViewModel
+                actuatorDataViewModel = actuatorDataViewModel, // Pass ViewModel
+                actuatorData = actuatorData, // Pass collected state for display
+                // Disable buttons if auto is true
+                enabled = actuatorData?.auto == false
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -185,7 +186,7 @@ fun DashboardControlCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             ClimateRangeSliders(
-                sensorRangeDataViewModel = sensorRangeDataViewModel,
+                sensorRangeDataViewModel = sensorRangeDataViewModel, // Pass ViewModel
                 tempRange = tempRange,
                 humRange = humRange,
                 preset = preset
@@ -197,7 +198,7 @@ fun DashboardControlCard(
 @Composable
 fun SensorDisplay(
     sensorData: SensorData?,
-    isLoading: MutableState<Boolean>
+    isLoading: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -205,7 +206,7 @@ fun SensorDisplay(
             .padding(16.dp)
             .systemBarsPadding()
     ) {
-        if (isLoading.value) {
+        if (isLoading) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -300,9 +301,9 @@ fun SensorDisplay(
 
 @Composable
 fun ActuatorButtonDisplay(
-    actuatorData: ActuatorData?,
-    coroutineScope: CoroutineScope,
-    actuatorDataViewModel: ActuatorDataViewModel
+    actuatorDataViewModel: ActuatorDataViewModel, // Receive ViewModel
+    actuatorData: ActuatorData?, // Receive collected state for display
+    enabled: Boolean // Control enabled state based on auto mode
 ) {
     Column(
         modifier = Modifier
@@ -324,12 +325,20 @@ fun ActuatorButtonDisplay(
                         disabledContainerColor = if (data.fan) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                         disabledContentColor = if (data.fan) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
                     ),
-                    enabled = !data.auto, // Disable button if in auto mode
+                    enabled = enabled, // Use enabled state passed down
                     onClick = {
-                        actuatorData.let { data ->
-                            coroutineScope.launch {
-                                actuatorDataViewModel.updateActuatorData(data.copy(fan = !data.fan))
-                            }
+                        Log.d("DashboardScreen", "Fan button clicked.")
+                        // Read latest state INSIDE onClick
+                        val currentState = actuatorDataViewModel.actuatorData.value
+                        if (currentState != null) {
+                            val newState = currentState.copy(
+                                fan = !currentState.fan, // Toggle fan
+                                auto = false // Turn off auto mode
+                            )
+                            Log.d("DashboardScreen", "Updating Fan state: $newState")
+                            actuatorDataViewModel.updateActuatorData(newState)
+                        } else {
+                            Log.w("DashboardScreen", "Cannot update Fan: current state is null")
                         }
                     }
                 ) {
@@ -352,12 +361,20 @@ fun ActuatorButtonDisplay(
                         disabledContainerColor = if (data.mist) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                         disabledContentColor = if (data.mist) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
                     ),
-                    enabled = !data.auto, // Disable button if in auto mode
+                    enabled = enabled,
                     onClick = {
-                        actuatorData.let { data ->
-                            coroutineScope.launch {
-                                actuatorDataViewModel.updateActuatorData(data.copy(mist = !data.mist))
-                            }
+                        Log.d("DashboardScreen", "Mist button clicked.")
+                        // Read latest state INSIDE onClick
+                        val currentState = actuatorDataViewModel.actuatorData.value
+                        if (currentState != null) {
+                            val newState = currentState.copy(
+                                mist = !currentState.mist, // Toggle mist
+                                auto = false // Turn off auto mode
+                            )
+                            Log.d("DashboardScreen", "Updating Mist state: $newState")
+                            actuatorDataViewModel.updateActuatorData(newState)
+                        } else {
+                            Log.w("DashboardScreen", "Cannot update Mist: current state is null")
                         }
                     }
                 ) {
@@ -380,12 +397,20 @@ fun ActuatorButtonDisplay(
                     disabledContainerColor = if (data.vent) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                     disabledContentColor = if (data.vent) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f)
                 ),
-                enabled = !data.auto, // Disable button if in auto mode
+                enabled = enabled,
                 onClick = {
-                    actuatorData.let { data ->
-                        coroutineScope.launch {
-                            actuatorDataViewModel.updateActuatorData(data.copy(vent = !data.vent))
-                        }
+                    Log.d("DashboardScreen", "Vent button clicked.")
+                    // Read latest state INSIDE onClick
+                    val currentState = actuatorDataViewModel.actuatorData.value
+                    if (currentState != null) {
+                        val newState = currentState.copy(
+                            vent = !currentState.vent, // Toggle vent
+                            auto = false // Turn off auto mode
+                        )
+                        Log.d("DashboardScreen", "Updating Vent state: $newState")
+                        actuatorDataViewModel.updateActuatorData(newState)
+                    } else {
+                        Log.w("DashboardScreen", "Cannot update Vent: current state is null")
                     }
                 }
             ) {
@@ -400,9 +425,8 @@ fun ActuatorButtonDisplay(
 
 @Composable
 fun ClimateControlSwitch(
-    actuatorData: ActuatorData?,
-    coroutineScope: CoroutineScope,
-    actuatorDataViewModel: ActuatorDataViewModel
+    actuatorDataViewModel: ActuatorDataViewModel, // Receive ViewModel
+    actuatorData: ActuatorData? // Receive collected state for display
 ) {
     Row(
         modifier = Modifier
@@ -416,15 +440,25 @@ fun ClimateControlSwitch(
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.W700
         )
+        val isChecked = actuatorData?.auto ?: false // Default to false if null
         Switch(
-            checked = actuatorData?.auto == true, // Bind to isAuto value from actuatorData
-            onCheckedChange = { isChecked ->
-                actuatorData?.let { data ->
-                    coroutineScope.launch {
-                        // Update isAuto in the Realtime Database
-                        actuatorDataViewModel.updateActuatorData(data.copy(auto = isChecked))
-                    }
-                }
+            checked = isChecked,
+            onCheckedChange = { newCheckedState ->
+                Log.d("DashboardScreen", "Auto switch toggled to: $newCheckedState")
+                // Read latest state INSIDE onCheckedChange
+                val currentState = actuatorDataViewModel.actuatorData.value
+                // Create a default state if current is null, though it shouldn't be ideally
+                val stateToUpdate = currentState ?: ActuatorData()
+                val newState = stateToUpdate.copy(auto = newCheckedState)
+                Log.d("DashboardScreen", "Updating Auto state: $newState")
+                actuatorDataViewModel.updateActuatorData(newState)
+            },
+            thumbContent = {
+                Icon(
+                    imageVector = if (isChecked) Icons.Filled.Check else Icons.Filled.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                )
             }
         )
     }
@@ -479,7 +513,7 @@ fun ClimateRangeSliders(
                         tempRangeLow = tempRange.value.start.toDouble(),
                         humRangeHigh = humRange.value.endInclusive.toDouble(),
                         humRangeLow = humRange.value.start.toDouble(),
-                        preset = newPreset // Use the new preset
+                        preset = newPreset
                     )
                 )
             },
@@ -507,7 +541,7 @@ fun ClimateRangeSliders(
                         tempRangeLow = tempRange.value.start.toDouble(),
                         humRangeHigh = humRange.value.endInclusive.toDouble(),
                         humRangeLow = humRange.value.start.toDouble(),
-                        preset = newPreset // Use the new preset
+                        preset = newPreset
                     )
                 )
             },
@@ -562,14 +596,12 @@ fun PresetButtonForDialog(
 ) {
     val openDialog = remember { mutableStateOf(false) }
 
-    // Store previous values to revert if dismissed or canceled
     val previousTempRange = remember { mutableStateOf(currentTempRange.value) }
     val previousHumRange = remember { mutableStateOf(currentHumRange.value) }
     val previousPresetName = remember { mutableStateOf(currentPresetName.value) }
 
     OutlinedButton(
         onClick = {
-            // Capture current values as "previous" before opening dialog
             previousTempRange.value = currentTempRange.value
             previousHumRange.value = currentHumRange.value
             previousPresetName.value = currentPresetName.value
@@ -582,7 +614,6 @@ fun PresetButtonForDialog(
     if (openDialog.value) {
         Dialog(
             onDismissRequest = {
-                // Revert to previous values when the dialog is dismissed
                 currentTempRange.value = previousTempRange.value
                 currentHumRange.value = previousHumRange.value
                 currentPresetName.value = previousPresetName.value
@@ -596,7 +627,6 @@ fun PresetButtonForDialog(
                     openDialog.value = false
                 },
                 onDismiss = {
-                    // Revert values and close dialog
                     currentTempRange.value = previousTempRange.value
                     currentHumRange.value = previousHumRange.value
                     currentPresetName.value = previousPresetName.value
@@ -614,7 +644,7 @@ fun updateSensorRangeInDatabase(
     sensorRangeDataViewModel: SensorRangeDataViewModel,
     tempRange: ClosedFloatingPointRange<Float>,
     humRange: ClosedFloatingPointRange<Float>,
-    preset: String // Add preset parameter
+    preset: String
 ) {
     val updatedData = SensorRangeData(
         tempRangeLow = tempRange.start.toDouble(),
@@ -627,7 +657,6 @@ fun updateSensorRangeInDatabase(
     sensorRangeDataViewModel.updateSensorRangeData(updatedData)
 }
 
-// Extension function to round Float to the nearest 0.1
 fun Float.roundToOneDecimal(): Float {
     return (this * 10).roundToInt() / 10f
 }
