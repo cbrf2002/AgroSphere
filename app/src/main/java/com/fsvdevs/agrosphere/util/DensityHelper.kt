@@ -5,10 +5,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 
 object DensityHelper {
-    private const val MAX_FONT_SCALE = 1.1f
-    private const val MIN_FONT_SCALE = 0.9f
-    private const val MAX_UI_SCALE = 2.5f
-    private const val MIN_UI_SCALE = 1.5f
+    private const val MAX_FONT_SCALE = 1.5f
+    private const val MIN_FONT_SCALE = 1.1f
+    private const val MAX_UI_SCALE = 2.6f
+    private const val MIN_UI_SCALE = 1.6f
 
     @Composable
     fun getScaledDensity(): Density {
