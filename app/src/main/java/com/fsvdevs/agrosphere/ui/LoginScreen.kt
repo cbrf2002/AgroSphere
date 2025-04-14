@@ -64,6 +64,10 @@ fun LoginScreen(
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val logoSize = screenWidth * 0.4f
 
+    // State for validation errors
+    var emailError by remember { mutableStateOf("") }
+    var passwordError by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -170,7 +174,13 @@ fun LoginScreen(
                                     }
                                 }
                             },
-                            singleLine = true
+                            singleLine = true,
+                            isError = emailError.isNotBlank(),
+                            supportingText = {
+                                if (emailError.isNotBlank()) {
+                                    Text(text = emailError, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         )
 
                         OutlinedTextField(
@@ -199,7 +209,13 @@ fun LoginScreen(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
                             ),
-                            singleLine = true
+                            singleLine = true,
+                            isError = passwordError.isNotBlank(),
+                            supportingText = {
+                                if (passwordError.isNotBlank()) {
+                                    Text(text = passwordError, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -210,6 +226,8 @@ fun LoginScreen(
                                 isSignUpVisible = false
                                 email = ""
                                 password = ""
+                                emailError = ""
+                                passwordError = ""
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -220,7 +238,22 @@ fun LoginScreen(
 
                         if (isEmailSignInVisible) {
                             Button(
-                                onClick = { onEmailSignIn(email, password) },
+                                onClick = {
+                                    emailError = ""
+                                    passwordError = ""
+                                    var isValid = true
+                                    if (email.isBlank()) {
+                                        emailError = "Email cannot be empty"
+                                        isValid = false
+                                    }
+                                    if (password.isBlank()) {
+                                        passwordError = "Password cannot be empty"
+                                        isValid = false
+                                    }
+                                    if (isValid) {
+                                        onEmailSignIn(email, password)
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Sign in with Email")
@@ -229,7 +262,14 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             TextButton(
-                                onClick = { onForgotPassword(email) },
+                                onClick = {
+                                    emailError = ""
+                                    if (email.isBlank()) {
+                                        emailError = "Please enter your email first"
+                                    } else {
+                                        onForgotPassword(email)
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Forgot Password?")
@@ -238,7 +278,22 @@ fun LoginScreen(
 
                         if (isSignUpVisible) {
                             Button(
-                                onClick = { onSignUp(email, password) },
+                                onClick = {
+                                    emailError = ""
+                                    passwordError = ""
+                                    var isValid = true
+                                    if (email.isBlank()) {
+                                        emailError = "Email cannot be empty"
+                                        isValid = false
+                                    }
+                                    if (password.isBlank()) {
+                                        passwordError = "Password cannot be empty"
+                                        isValid = false
+                                    }
+                                    if (isValid) {
+                                        onSignUp(email, password)
+                                    }
+                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Sign Up")
