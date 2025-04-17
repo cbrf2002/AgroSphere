@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/AGS.png" alt="AgroSphere Logo" width="150"/>
   <h1>AgroSphere</h1>
-  <p>IoT-Based Automated Greenhouse Monitoring & Climate Control</p>
+  <p>IoT-Based Automated Greenhouse Monitoring & Climate Control by <b>AGROBROS</b></p>
 
   <!-- Badges -->
   <p>
