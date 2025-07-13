@@ -1,9 +1,9 @@
 // ***********************************************************************************************************
 // ****   AgroSphere: IoT-Based Automated Greenhouse Monitoring System with Internal Climate Control      ****
 // ****   Project by: Fabian, Sumalinog, Vicente                                                          ****
-// ****   Version 1.50 | 14/04/25                                                                         ****
+// ****   Version 1.52 | 29/06/25                                                                         ****
 // ***********************************************************************************************************
-
+ 
 const char* root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw\n" \
@@ -38,9 +38,9 @@ const char* root_ca = \
 "-----END CERTIFICATE-----\n"; // Root CA for Firebase Realtime Database
  
 // WiFi credentials
-#define WIFI_SSID "Wifi"
-#define WIFI_PASSWORD "Password"
-
+#define WIFI_SSID "GlobeAtHome_D9C5E"
+#define WIFI_PASSWORD "6ADA33F1"
+ 
 // Firebase API key and Realtime Database project details
 #define API_KEY "AIzaSyC2U4oWoR_zwYoojjNxPDEjQzYWmeq9Ws0"
 #define FIREBASE_PROJECT_ID "agrosphere-fsvdev"
@@ -48,11 +48,11 @@ const char* root_ca = \
 #define USER_PASSWORD "cbrf123456789"
 #define FIREBASE_CLIENT_EMAIL "cbrf.2002@gmail.com"
 #define DATABASE_URL "https://agrosphere-fsvdev-default-rtdb.asia-southeast1.firebasedatabase.app/"
-
+ 
 // DHT sensor pin and type
-#define DHTPIN 12
+#define DHTPIN 4
 #define DHTTYPE DHT22 // Or DHT11 if DHT22 is not available
-
+ 
 // Imports
 #include <Arduino.h>
 #include <WiFi.h>
@@ -61,18 +61,17 @@ const char* root_ca = \
 #include <FirebaseClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-
+ 
 #include <DHT.h>
 #include <OneWire.h>
 #include <BH1750.h>
-#include <ESP32Servo.h>
 #include <Wire.h>
 #include <DallasTemperature.h>
 #include <time.h>
  
 const long  gmtOffset_sec = 28800; // GMT+8 for PHT
 const int   daylightOffset_sec = 0;
-
+ 
 // Sensor declarations
 constexpr int mqPin = 34;         // MQ135
 constexpr int lightPin = 21;      // BH1750
@@ -80,10 +79,19 @@ constexpr int wlPin = 19;         // Float switch
 constexpr int wtPin = 23;         // DS18B20
 constexpr int phPin = 33;         // PH4502C
 constexpr int tdsPin = 32;        // TDS/EC - 3.3v
-constexpr int randGen = 25;       // For sensor history directory randomizer
-
+constexpr int randGen = 12;       // For sensor history directory randomizer
+ 
 // SPIFFS file for offline history
 #define OFFLINE_HISTORY_FILE "/offline_history.jsonl"
+ 
+// Linear Actuator Pin Definitions (L298N)
+#define RPWM 14 // PWM pin for extend
+#define LPWM 27 // PWM pin for retract
+#define R_EN 26 // Enable pin for one side of L298N
+#define L_EN 25 // Enable pin for other side of L298N
+ 
+// Duration to extend/retract in milliseconds
+const int moveTime = 10000;  // 10 seconds
  
 //TDS
 #define VREF 3.3                  // Analog reference voltage
@@ -100,7 +108,6 @@ BH1750 lightMeter;
 OneWire oneWire(wtPin);
 DallasTemperature sensors(&oneWire);
 DHT dht(DHTPIN, DHTTYPE);
-Servo ventServo;
  
 // MQ135 sensor variables
 int mq135Value = 0;
@@ -110,20 +117,20 @@ float mq135PPM = 0;
 // Actuator declarations
 constexpr int fanPin = 18;        // Fan relay control
 constexpr int mistPin = 17;       // Mist pump relay control
-constexpr int ventPin = 13;       // Servo Motor for ventilation
+// constexpr int ventPin = 13;       // Servo Motor for ventilation
  
 // Function declarations
 float mockSensorValue(float previousValue, float min, float max, float step);
 float randomFloat(float min, float max);
 int getMedianNum(int bArray[], int iFilterLen);
-void ventServoControl(bool ventStatus, int servoAngle);
+// void ventServoControl(bool ventStatus, int servoAngle);
 void timeStatusCB(uint32_t &ts);
 void authHandler();
 void handleActuators();
 void printResult(AsyncResult &aResult);
 void printError(int code, const String &msg);
 String generateRandomID(int length);
-
+ 
 // Declarations for offline handling
 void initializeSPIFFS();
 bool saveDataLocally(const JsonObject& sensorData);
@@ -132,8 +139,8 @@ bool createSensorJson(JsonObject& doc, float temperature, float humidity, float 
 unsigned long long getCurrentTimestampEstimate();
 void updateLastSuccessfulTime(unsigned long long firebaseTimestamp = 0);
 bool uploadOfflineRecord(const JsonObject& sensorData);
-
-// New Helper Function Declarations
+ 
+// Helper Function Declarations
 bool checkFirebaseError(const String& operation);
 bool setFirebaseNumber(const String& path, float value, int precision = 2);
 bool setFirebaseBool(const String& path, bool value);
@@ -142,11 +149,16 @@ bool getFirebaseFloat(const String& path, float& value, float defaultValue);
 bool getFirebaseBool(const String& path, bool& value, bool defaultValue);
 bool readFirebaseTimestamp(const String& path, unsigned long long& timestamp);
 bool validateSensorData(float temp, float hum, float waterT);
-
+ 
+// Linear Actuator Function Declarations
+void extendActuator();
+void retractActuator();
+void stopActuator();
+ 
 // Firebase authentication and configuration
 DefaultNetwork network;
 UserAuth user_auth(API_KEY, USER_EMAIL, USER_PASSWORD);
-
+ 
 // Initialize Firebase and network objects
 FirebaseApp app;
 WiFiClientSecure ssl_client;
@@ -154,7 +166,7 @@ using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client, getNetwork(network));
 RealtimeDatabase Database;
 AsyncResult aResult_no_callback;
-
+ 
 // Async Timers
 unsigned long previousMillis = 0;
 unsigned long wifiReconnectMillis = 0;
@@ -164,57 +176,63 @@ unsigned long mistPumpMillis = 0;
 unsigned long lastMistStart = 0;
 unsigned long actuatorFetchMillis = 0;
 unsigned long previousFirestoreUpload = 0;
-
+ 
 // Interval for sensor, actuator, and history updates
 const long sensorInterval = 5000; // Every 5 seconds
 const long actuatorInterval = 1000; // Every 1 second
 const long sensorHistoryUploadInterval = 60000; // Every 60 seconds
-
+ 
 // Sensor variables
 float temperature, humidity, carbonDioxide, lightLevel, waterTemp, pH, tds;
 bool waterLevel;
 float tempRangeHigh, tempRangeLow, humRangeHigh, humRangeLow;
-
+ 
 // Add variables to store last known valid ranges with defaults
 float lastKnownTempRangeHigh = 25.0;
 float lastKnownTempRangeLow = 20.0;
 float lastKnownHumRangeHigh = 80.0;
 float lastKnownHumRangeLow = 70.0;
-
+ 
 // Variables to store the previous mock values
 bool useMockValues = false;
 float prevTemperature = 27.0, prevHumidity = 65.0, prevCarbonDioxide = 960.0;
 float prevLightLevel = 900.0, prevWaterLevel = 20.0, prevWaterTemp = 22.0;
 float prevPH = 6.5, prevTDS = 100.0;
-
+ 
 // Actuator variables
 bool fanStatus, mistStatus, ventStatus, isAuto;
 bool misting = false;
-int servoAngle;
-
+ 
 // Offline state tracking
 bool isOffline = true;          // Start assuming offline until connection confirmed
 bool lastOnlineState = false;   // Track previous online state for transitions
-
+ 
 // Tracker for reconnects
 int reconnectAttempts = 0;
 const int maxReconnectAttempts = 20;
 bool wasConnected = false;
-
+ 
 // Variables for approximate time tracking
 unsigned long long lastSuccessfulTimestamp = 0;     // Store epoch ms
-unsigned long millisAtLastSuccessfulTimestamp = 0;  // Store millis() at that time
-
+unsigned long millisAtLastSuccessfulTimestamp = 0;  // Store millis() at the time
+ 
 // Variables for Internet Connectivity Check
 bool internetAvailable = true;                              // Assume available if WiFi is connected, until check fails
 unsigned long lastInternetCheckMillis = 0;
 const unsigned long internetCheckInterval = 5000;           // Check every 5 seconds
 unsigned long firstInternetFailMillis = 0;
 const unsigned long internetFailConfirmDuration = 10000;    // 10 seconds to confirm internet outage
-
+ 
+// Tracks the physical state of the vent actuator
+static bool actualVentStateIsExtended = false; // false = retracted (closed), true = extended (open)
+ 
+// Scheduled Restart Variables
+const unsigned long RESTART_INTERVAL_MS = 45 * 60 * 1000; // 45 minutes in milliseconds
+unsigned long restartTimerStartMillis = 0;
+ 
 // Function declaration for internet check
 void checkInternetConnection();
-
+ 
 // Mock values for sensors simulation
 float mockSensorValue(float previousValue, float min, float max, float step) {
     float newValue = previousValue + randomFloat(-step, step);   // Slight change
@@ -223,19 +241,19 @@ float mockSensorValue(float previousValue, float min, float max, float step) {
     if (newValue > max) newValue = max;
     return newValue;
 }
-
+ 
 // Function to generate random float values
 float randomFloat(float min, float max) {
     return min + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (max - min)));
 }
-
+ 
 // TDS average voltage calculation
 int getMedianNum(int bArray[], int iFilterLen) {
   int bTab[iFilterLen];
   for (byte i = 0; i < iFilterLen; i++) {
     bTab[i] = bArray[i];
   }
-
+ 
   int i, j, bTemp;
   for (j = 0; j < iFilterLen - 1; j++) {
     for (i = 0; i < iFilterLen - j - 1; i++) {
@@ -253,14 +271,14 @@ int getMedianNum(int bArray[], int iFilterLen) {
   }
   return bTemp;
 }
-
+ 
 // Authentication handler
 void authHandler() {
   unsigned long startMillis = millis();
   const unsigned long timeout = 120000; // 2-minute timeout for auth/init
-
+ 
   Serial.println("Entering authHandler...");
-
+ 
   // Ensure JWT processing happens while waiting for app readiness
   while (app.isInitialized() && !app.ready() && (millis() - startMillis < timeout)) {
       Serial.print("authHandler: Waiting for Firebase App to be ready... ");
@@ -271,7 +289,7 @@ void authHandler() {
       // printResult(aResult_no_callback); // Can be noisy, use if debugging specific auth issues
       Serial.println(app.ready() ? "Ready!" : "Not Ready.");
   }
-
+ 
   if (!app.ready()) {
       Serial.printf("authHandler: Firebase App failed to become ready within %lu ms.\n", timeout);
       // Optionally check the last error if available
@@ -287,31 +305,31 @@ void authHandler() {
       Serial.println("authHandler: Firebase App is ready.");
   }
 }
-
+ 
 // Function to print AsyncResult (Ensure this is present if used by authHandler)
 void printResult(AsyncResult &aResult) {
   if (aResult.isEvent()) {
     Firebase.printf("Event task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.appEvent().message().c_str(), aResult.appEvent().code());
   }
-
+ 
   if (aResult.isDebug()) {
     Firebase.printf("Debug task: %s, msg: %s\n", aResult.uid().c_str(), aResult.debug().c_str());
   }
-
+ 
   if (aResult.isError()) {
     Firebase.printf("Error task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
   }
-
+ 
   if (aResult.available()) {
     Firebase.printf("task: %s, payload: %s\n", aResult.uid().c_str(), aResult.c_str());
   }
 }
-
+ 
 // Function to print errors
 void printError(int code, const String &msg) {
   Firebase.printf("Error, msg: %s, code: %d\n", msg.c_str(), code);
 }
-
+ 
 // Checks the last Firebase operation error and prints a message if an error occurred.
 bool checkFirebaseError(const String& operation) {
     if (aClient.lastError().code() == 0) {
@@ -322,25 +340,25 @@ bool checkFirebaseError(const String& operation) {
         return false;
     }
 }
-
+ 
 // Firebase RTDB number set
 bool setFirebaseNumber(const String& path, float value, int precision) {
     Database.set<number_t>(aClient, path, number_t(value, precision));
     return checkFirebaseError("set number at " + path);
 }
-
+ 
 // Firebase RTDB boolean set
 bool setFirebaseBool(const String& path, bool value) {
     Database.set<bool>(aClient, path, value);
     return checkFirebaseError("set boolean at " + path);
 }
-
+ 
 // Firebase RTDB object set
 bool setFirebaseObject(const String& path, const object_t& value) {
     Database.set<object_t>(aClient, path, value);
     return checkFirebaseError("set object at " + path);
 }
-
+ 
 // Firebase RTDB float get
 bool getFirebaseFloat(const String& path, float& value, float defaultValue) {
     float fetchedValue = Database.get<float>(aClient, path);
@@ -352,7 +370,7 @@ bool getFirebaseFloat(const String& path, float& value, float defaultValue) {
         return false;
     }
 }
-
+ 
 // Firebase RTDB boolean get
 bool getFirebaseBool(const String& path, bool& value, bool defaultValue) {
     bool fetchedValue = Database.get<bool>(aClient, path);
@@ -364,13 +382,13 @@ bool getFirebaseBool(const String& path, bool& value, bool defaultValue) {
         return false;
     }
 }
-
+ 
 // Firebase timestamp get
 bool readFirebaseTimestamp(const String& path, unsigned long long* timestampPtr) {
     // Allow some time for the server timestamp to be processed
     delay(100);
     double fbTimestampDouble = Database.get<double>(aClient, path);
-
+ 
     if (checkFirebaseError("read back timestamp from " + path)) {
         unsigned long long firebaseTimestamp = (unsigned long long)fbTimestampDouble;
         Serial.printf("Successfully read back Firebase timestamp: %llu\n", firebaseTimestamp);
@@ -388,7 +406,7 @@ bool readFirebaseTimestamp(const String& path, unsigned long long* timestampPtr)
         return false;
     }
 }
-
+ 
 // Sensor data validation (for invalid readings)
 bool validateSensorData(float temp, float hum, float waterT) {
     if (temp == 0.0 || hum == 0.0 || waterT == -127.0 || waterT == 85.0) {
@@ -397,7 +415,7 @@ bool validateSensorData(float temp, float hum, float waterT) {
     }
     return true;
 }
-
+ 
 // Setup function
 void setup() {
   Serial.begin(115200);
@@ -425,49 +443,75 @@ void setup() {
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
   // Connect to Wi-Fi
+  Serial.println("Configuring WiFi...");
+  WiFi.disconnect(true); // Disconnect from any previous network and clear settings
+  delay(100); // Short delay after disconnect
+  WiFi.mode(WIFI_STA);   // Set WiFi to station mode
+
+  // 1) Scan for networks
+  Serial.println("Scanning for WiFi networks...");
+  // WiFi.scanNetworks will return the number of networks found
+  int n = WiFi.scanNetworks(/*async=*/false, /*hidden=*/true, /*passive=*/false, /*max_ms_per_chan=*/300, /*channel=*/0, WIFI_SSID); // Added more specific scan params
+  if (n == 0) {
+    Serial.println("  No networks found.");
+  } else {
+    Serial.printf("  %d networks found:\n", n);
+    for (int i = 0; i < n; ++i) {
+      Serial.printf("    %2d: %-32s  (%4d dBm)  %s\n",
+                    i + 1,
+                    WiFi.SSID(i).c_str(),
+                    WiFi.RSSI(i),
+                    (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "Open" : "Encrypted");
+      delay(10); // Small delay to allow serial print to complete and avoid overwhelming the processor
+    }
+  }
+  Serial.println("Scan complete.");
+
+
+  Serial.printf("\nAttempting to connect to SSID: \"%s\"\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
 
-  int wifiAttempts = 0;
-  while (WiFi.status() != WL_CONNECTED && wifiAttempts < 20) {
+  unsigned long startAttemptTime = millis();
+  // Wait for connection, with a timeout (e.g., 30 seconds)
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) { // 30-second timeout
     Serial.print(".");
     delay(500);
-    wifiAttempts++;
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println();
+    Serial.println(); // Newline after dots
     Serial.println("Failed to connect to WiFi initially. Starting in offline mode.");
     isOffline = true;
   } else {
-    Serial.println();
+    Serial.println(); // Newline after dots
     Serial.print("Connected with IP: ");
     Serial.println(WiFi.localIP());
     Serial.println();
-    isOffline = false; // Connected, set online state
+    isOffline = false; // Connected, set online state (event handler should also do this)
   }
   lastOnlineState = !isOffline; // Initialize last state
 
   // Initialize I2C with explicit SDA/SCL pins and lower clock speed for DS18B20
   Wire.begin(21, 22, 100000); // Use 100kHz
-
+ 
   // Initialize Firebase only if connected
   if (!isOffline) {
     Serial.println("Attempting Firebase Initialization...");
     Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
-
+ 
     // Configure secure connection
     Serial.println("Attempting secure connection with certificate validation...");
     ssl_client.setCACert(root_ca);
-
+ 
     // Verify user credentials directly during app initialization
     Serial.print("Verifying user... ");
-
+ 
     // Initialize Firebase App - This implicitly verifies credentials
     Serial.println("Initializing app...");
     initializeApp(aClient, app, getAuth(user_auth), aResult_no_callback);
     authHandler(); // Wait for initialization and authentication
-
+ 
     // Check if initialization and authentication were successful
     if (app.ready()) {
         Serial.println("Secure connection and authentication successful!");
@@ -476,7 +520,7 @@ void setup() {
         Serial.printf("User UID: %s\n", app.getUid().c_str());
         Serial.printf("Auth Token: %s\n", app.getToken().c_str());
         Serial.printf("Refresh Token: %s\n", app.getRefreshToken().c_str());
-
+ 
         app.getApp<RealtimeDatabase>(Database);
         aClient.setAsyncResult(aResult_no_callback);
         Database.url(DATABASE_URL);
@@ -490,23 +534,34 @@ void setup() {
   } else {
       Serial.println("Skipping Firebase initialization due to no WiFi connection.");
   }
-
+ 
   pinInitialization(); // Initialize the pins
-
+ 
   // Initialize random number generator with a semi-random seed
   randomSeed(analogRead(randGen) + millis());
+  
+  // Initialize the restart timer
+  restartTimerStartMillis = millis();
+  Serial.printf("ESP32 initialized. Scheduled restart in %lu minutes.\n", RESTART_INTERVAL_MS / (60 * 1000));
 }
-
+ 
 // Main loop function
 void loop() {
   unsigned long currentMillis = millis();
-
+ 
+  // Check for scheduled restart
+  if (currentMillis - restartTimerStartMillis >= RESTART_INTERVAL_MS) {
+    Serial.println("Scheduled restart: 45-minute interval reached. Restarting ESP32...");
+    delay(1000); // Allow time for serial message to be sent
+    ESP.restart();
+  }
+ 
   // Network Connection Management
   bool wifiConnected = (WiFi.status() == WL_CONNECTED);
-
+ 
   // Update overall offline state: Offline if WiFi is down OR internet is confirmed unavailable
   isOffline = !wifiConnected || !internetAvailable;
-
+ 
   // This block handles transitions primarily driven by WiFi status changes OR
   // the initial detection of internet restoration by checkInternetConnection.
   if (isOffline != lastOnlineState) {                         // State changed (either Wi-Fi or Internet availability)
@@ -533,7 +588,7 @@ void loop() {
               internetAvailable = false;                      // Assume internet issue if Firebase fails
           }
       }
-
+ 
       // Fetch 'isAuto' state immediately after confirming online and Firebase ready
       if (app.ready()) {                                      // Proceed only if Firebase is ready
           Serial.println("Fetching latest 'auto' mode state from Firebase (after reconnect)...");
@@ -546,7 +601,7 @@ void loop() {
               printError(aClient.lastError().code(), aClient.lastError().message());
               isAuto = true;                                  // Default to auto if fetch fails
           }
-
+ 
           // Attempt to upload any stored offline data
           uploadOfflineHistory();
       }
@@ -558,19 +613,19 @@ void loop() {
     }
     lastOnlineState = isOffline;                              // Update the last known state
   }
-
+ 
   // Simplified Wi-Fi Reconnection Logic (runs only if Wi-Fi specifically is disconnected)
   if (!wifiConnected && currentMillis - wifiReconnectMillis >= 5000) {
       wifiReconnectMillis = currentMillis;
       Serial.println("Attempting Wi-Fi reconnection...");
       WiFi.reconnect();
   }
-
+ 
   // Handle Firebase auth tasks only when online (Wi-Fi and Internet) and initialized
   if (!isOffline && app.isInitialized()) {
       // *** Call JWT.loop() frequently when online and initialized ***
       JWT.loop(app.getAuth()); // Allow the library to manage token refresh
-
+ 
       // Explicitly check if Firebase App is ready (includes auth token validity) AFTER processing JWT events
       if (!app.ready()) {
           Serial.println("Firebase App not ready (token likely expired or auth issue). Attempting auth handler...");
@@ -606,11 +661,11 @@ void loop() {
           }
       }
   }
-
+ 
   // Sensor Reading and Actuator Control Interval
   if (currentMillis - updateMillis >= actuatorInterval) {
     updateMillis = currentMillis;
-
+ 
     // Perform internet check only if Wi-Fi is connected. Allows detection of restoration.
     if (wifiConnected && currentMillis - lastInternetCheckMillis >= internetCheckInterval) {
         lastInternetCheckMillis = currentMillis;
@@ -656,7 +711,7 @@ void loop() {
              }
         }
     }
-
+ 
     // Fetch 'isAuto' state periodically when online and stable
     if (!isOffline && app.ready() && firstInternetFailMillis == 0) {
         Serial.println("Checking 'auto' mode state from Firebase...");
@@ -674,14 +729,14 @@ void loop() {
             // Keep the current isAuto value if fetch fails
         }
     }
-
+ 
     // Decision whether to use the mock value sensor simulation or real sensor readings from pins
     if (useMockValues) {
       updateMockSensorValues();
     } else {
       runSensors();
     }
-
+ 
     // Update ranges only when online AND internet connection is confirmed stable
     if (!isOffline && app.ready() && firstInternetFailMillis == 0) {
         tempRangesUpdate();
@@ -698,23 +753,22 @@ void loop() {
             Serial.println("Operating in offline mode (No Internet). Using last known ranges.");
         }
     }
-
+ 
     handleActuators(); // Handle actuators based on current (potentially just updated) isAuto state
     endActuatorInterval:; // Label for goto jump
   }
-
+ 
   // Sensor Data Upload Interval (Current Values)
   if (currentMillis - sensorUploadMillis >= sensorInterval) {
     Serial.print("ESP Free Heap: ");
     Serial.println(ESP.getFreeHeap());
     sensorUploadMillis = currentMillis;
-
+ 
     // Upload only if online (Wi-Fi and Internet confirmed stable) and Firebase ready
-    if (!isOffline && app.ready() && firstInternetFailMillis == 0) { // Added check for app.ready() here too
+    if (!isOffline && app.ready() && firstInternetFailMillis == 0) {
         Serial.println("Uploading current sensor data to Firebase...");
         // setSensorData handles calling updateLastSuccessfulTime internally on success
         setSensorData(temperature, humidity, carbonDioxide, lightLevel, waterLevel, waterTemp, pH, tds);
-        // Removed explicit call to updateLastSuccessfulTime here
     } else {
         if (!app.ready() && !isOffline) {
              Serial.println("Offline: Skipping current sensor data upload (Firebase not ready).");
@@ -725,7 +779,7 @@ void loop() {
         }
     }
   }
-
+ 
   // Sensor History Upload Interval (Historical Values)
   if (currentMillis - previousFirestoreUpload >= sensorHistoryUploadInterval) {
     previousFirestoreUpload = currentMillis; // Update timer immediately
@@ -733,7 +787,7 @@ void loop() {
     DynamicJsonDocument doc(1024);
     JsonObject sensorData = doc.to<JsonObject>();
     bool dataValid = createSensorJson(sensorData, temperature, humidity, carbonDioxide, lightLevel, waterLevel, waterTemp, pH, tds);
-
+ 
     if (dataValid) {
         // Try to upload if online and stable, otherwise save locally
         if (!isOffline && app.ready() && firstInternetFailMillis == 0) { // Check stable online state and app.ready() for upload
@@ -742,7 +796,6 @@ void loop() {
             bool success = uploadSensorDataToRealtimeDatabase(sensorData);
             if (success) {
                 Serial.println("Historical sensor data uploaded successfully.");
-                // Removed explicit call to updateLastSuccessfulTime here
             } else {
                 Serial.println("Historical data upload failed. Saving locally.");
                 saveDataLocally(sensorData); // Save if upload fails
@@ -765,7 +818,7 @@ void loop() {
         Serial.println("Skipping history upload/save due to invalid sensor data.");
     }
   }
-
+ 
   // Mist pump control runs regardless of network state
   mistPumpControl(mistStatus);
 }
@@ -790,18 +843,33 @@ void pinInitialization() {
   // Initialize other sensors
   sensors.begin();
   dht.begin();
-  servoAngle = 0;
-  Serial.print("Servo status: ");
-  Serial.println(servoAngle);
  
   pinMode(wlPin, INPUT_PULLUP); //Normally closed setup
   pinMode(tdsPin, INPUT);
   pinMode(fanPin, OUTPUT);
   pinMode(mistPin, OUTPUT);
-  pinMode(phPin, INPUT);
-  ventServo.attach(ventPin);
-}
+  
+  // Initialize relays to OFF position
+  digitalWrite(fanPin, HIGH);  // HIGH = OFF for relay
+  digitalWrite(mistPin, HIGH); // HIGH = OFF for relay
 
+  pinMode(phPin, INPUT);
+
+  // Initialize Linear Actuator Pins
+  pinMode(RPWM, OUTPUT);
+  pinMode(LPWM, OUTPUT);
+  pinMode(R_EN, OUTPUT);
+  pinMode(L_EN, OUTPUT);
+
+  // Enable L298N driver
+  digitalWrite(R_EN, HIGH);
+  digitalWrite(L_EN, HIGH);
+
+  Serial.println("Initializing vent actuator to extended (closed) state..."); // Vent is closed when actuator is extended
+  extendActuator(); // Ensure vent is closed (actuator extended) initially
+  actualVentStateIsExtended = true; // Update tracked physical state (actuator is extended)
+}
+ 
 // Mock value sensor simulation with ranges
 void updateMockSensorValues() {
   temperature = mockSensorValue(prevTemperature, 25.0, 27.0, 0.1);
@@ -823,7 +891,7 @@ void updateMockSensorValues() {
   prevPH = pH;
   prevTDS = tds;
 }
-
+ 
 // Real sensor readings
 void runSensors() {
   temperature = readTemperature();    // DHT11/22
@@ -851,9 +919,11 @@ void handleActuators() {
   } else {                                      // Manual Mode
       if (isOffline) {                          // Should not happen if offline logic forces isAuto = true, but handle defensively
           Serial.println("Warning: In manual mode while offline? Forcing actuators OFF for safety.");
-          digitalWrite(fanPin, LOW);
+          digitalWrite(fanPin, HIGH);  // INVERTED for relay: HIGH to turn OFF
           mistPumpControl(false);               // Turn off mist
-          ventServoControl(false, servoAngle);  // Close vent
+          Serial.println("Safety (Manual Offline): Extending vent actuator (to close vent).");
+          extendActuator(); // Extend actuator to close vent
+          actualVentStateIsExtended = true; // Update physical state
       } else if (app.ready()) {                 // Online, Firebase ready, and in Manual mode
           // Fetch the status of the actuators from Firebase
           // ONLY if internet is not suspected unstable
@@ -862,13 +932,13 @@ void handleActuators() {
               getFirebaseBool("/actuatorStates/fan", fanStatus, fanStatus);
               getFirebaseBool("/actuatorStates/mist", mistStatus, mistStatus);
               getFirebaseBool("/actuatorStates/vent", ventStatus, ventStatus);
-
+ 
               // Debugging logs after attempting fetches
               Serial.println("Manual Actuator Status (fetched or previous):");
               Serial.print("Fan: "); Serial.println(fanStatus ? "ON" : "OFF");
               Serial.print("Mist: "); Serial.println(mistStatus ? "ON" : "OFF");
               Serial.print("Vent: "); Serial.println(ventStatus ? "ON" : "OFF");
-
+ 
           } else {
               Serial.println("Handling actuators in manual mode (skipping fetch - internet unstable). Using last known states.");
               // Keep last known fanStatus, mistStatus, ventStatus
@@ -877,34 +947,52 @@ void handleActuators() {
               Serial.print("Mist: "); Serial.println(mistStatus ? "ON" : "OFF");
               Serial.print("Vent: "); Serial.println(ventStatus ? "ON" : "OFF");
           }
-
+ 
           // Apply actuator logic based on fetched/last known state
-          digitalWrite(fanPin, fanStatus ? HIGH : LOW);
+          digitalWrite(fanPin, fanStatus ? LOW : HIGH);  // INVERTED for relay: LOW to turn ON, HIGH to turn OFF
           mistPumpControl(mistStatus);
-          ventServoControl(ventStatus, servoAngle);
+          // Vent control using linear actuator in Manual mode
+          // ventStatus: true for OPEN, false for CLOSED
+          // actualVentStateIsExtended: true if actuator is physically EXTENDED, false if physically RETRACTED
+          // New mapping: OPEN means actuator RETRACTED, CLOSED means actuator EXTENDED.
+          bool desiredActuatorToBeExtended = !ventStatus; // If vent OPEN (true), actuator NOT extended (false). If vent CLOSED (false), actuator IS extended (true).
+
+          if (desiredActuatorToBeExtended != actualVentStateIsExtended) {
+            if (desiredActuatorToBeExtended) { // We want the actuator to be extended (vent closed)
+              Serial.println("Manual mode: Vent command received (CLOSE). Extending actuator.");
+              extendActuator();
+              actualVentStateIsExtended = true;
+            } else { // We want the actuator to be retracted (vent open)
+              Serial.println("Manual mode: Vent command received (OPEN). Retracting actuator.");
+              retractActuator();
+              actualVentStateIsExtended = false;
+            }
+          }
       } else {
           // Online but Firebase not ready (should ideally not happen here due to checks in loop)
           Serial.println("Warning: Online but Firebase not ready in handleActuators (Manual Mode). Defaulting to safety (actuators off).");
-          digitalWrite(fanPin, LOW);
+          digitalWrite(fanPin, HIGH);  // INVERTED for relay: HIGH to turn OFF
           mistPumpControl(false); // Turn off mist
-          ventServoControl(false, servoAngle); // Close vent
+          Serial.println("Safety (Manual Firebase Not Ready): Extending vent actuator (to close vent).");
+          extendActuator(); // Extend actuator to close vent
+          actualVentStateIsExtended = true; // Update physical state
       }
   }
 }
-
+ 
 bool setSensorData(float temperature, float humidity, float carbonDioxide, float lightLevel, bool waterLevel, float waterTemp, float pH, float tds) {
   // Use server timestamp for current data uploads
   object_t ts_json;
   JsonWriter writer;
   writer.create(ts_json, ".sv", "timestamp");
   String timestampPath = "/sensorData/timestamp";
-
+ 
   Serial.println("Current Values: ");
   Serial.printf("Temperature: %.2f, Humidity: %.2f, Carbon Dioxide Level: %.2f, Light Level: %.2f, Water Level: %s, Water Temp: %.2f, pH: %.2f, tds: %.2f\n",
                 temperature, humidity, carbonDioxide, lightLevel, waterLevel ? "OK" : "LOW", waterTemp, pH, tds);
-
+ 
   Serial.println("Set sensor values...");
-
+ 
   bool success = true;
   success &= setFirebaseNumber("/sensorData/temperature", temperature);
   success &= setFirebaseNumber("/sensorData/humidity", humidity);
@@ -915,7 +1003,7 @@ bool setSensorData(float temperature, float humidity, float carbonDioxide, float
   success &= setFirebaseNumber("/sensorData/pH", pH);
   success &= setFirebaseNumber("/sensorData/tds", tds);
   success &= setFirebaseObject(timestampPath, ts_json);
-
+ 
   // Check success before attempting to read back timestamp
   if (success) {
       Serial.println("Sensor data set successfully. Attempting to read back timestamp for sync...");
@@ -926,32 +1014,32 @@ bool setSensorData(float temperature, float humidity, float carbonDioxide, float
       return false; // Indicate failure
   }
 }
-
+ 
 // Uploads historical data when ONLINE. Uses server timestamp.
 bool uploadSensorDataToRealtimeDatabase(const JsonObject& sensorData) {
   if (isOffline || !app.ready()) {
       Serial.println("Upload skipped: Offline or Firebase not ready.");
       return false; // Indicate failure/skip
   }
-
+ 
   // Validate sensor data using the helper function
   if (!validateSensorData(temperature, humidity, waterTemp)) {
       Serial.println("UPLOAD SUSPENDED: Invalid sensor data detected by validation function.");
       return false; // Indicate failure/skip due to bad data
   }
-
+ 
   // Generate a unique ID using current millis + random characters
   String uniqueID = "h" + String(millis()) + "-" + generateRandomID(8); // "h" for online history upload
   String basePath = "/sensorHistory/" + uniqueID;
   String timestampPath = basePath + "/timestamp"; // Path for the timestamp
-
+ 
   // Create server timestamp object for online history uploads
   object_t ts_json;
   JsonWriter writer;
   writer.create(ts_json, ".sv", "timestamp");
-
+ 
   Serial.printf("Attempting to upload online history data entry with unique ID: %s\n", uniqueID.c_str());
-
+ 
   bool success = true;
   success &= setFirebaseNumber(basePath + "/temperature", temperature);
   success &= setFirebaseNumber(basePath + "/humidity", humidity);
@@ -962,7 +1050,7 @@ bool uploadSensorDataToRealtimeDatabase(const JsonObject& sensorData) {
   success &= setFirebaseNumber(basePath + "/pH", pH);
   success &= setFirebaseNumber(basePath + "/tds", tds);
   success &= setFirebaseObject(timestampPath, ts_json); // Set timestamp last
-
+ 
   // Check the final success status
   if (success) {
     Serial.println("Online historical sensor data uploaded to: " + basePath);
@@ -975,7 +1063,7 @@ bool uploadSensorDataToRealtimeDatabase(const JsonObject& sensorData) {
     return false; // Indicate failure
   }
 }
-
+ 
 void tempRangesUpdate() {
   // Skip if offline, Firebase not ready, or internet suspected unstable
   if (isOffline || !app.ready()) {
@@ -986,10 +1074,10 @@ void tempRangesUpdate() {
     Serial.println("Skipping range update: Internet connection suspected unstable.");
     return;
   }
-
+ 
   Serial.println("Fetching sensor ranges from Firebase...");
   float fetchedTempHigh, fetchedTempLow, fetchedHumHigh, fetchedHumLow;
-
+ 
   // Use helper functions. Store to lastKnown only on success.
   if (getFirebaseFloat("/sensorRanges/tempRangeHigh", fetchedTempHigh, tempRangeHigh)) {
       tempRangeHigh = fetchedTempHigh;
@@ -999,7 +1087,7 @@ void tempRangesUpdate() {
       Serial.println("Failed to fetch tempRangeHigh. Keeping previous value.");
       // Error already printed by helper
   }
-
+ 
   if (getFirebaseFloat("/sensorRanges/tempRangeLow", fetchedTempLow, tempRangeLow)) {
       tempRangeLow = fetchedTempLow;
       lastKnownTempRangeLow = tempRangeLow; // Store successfully fetched value
@@ -1007,7 +1095,7 @@ void tempRangesUpdate() {
   } else {
       Serial.println("Failed to fetch tempRangeLow. Keeping previous value.");
   }
-
+ 
   if (getFirebaseFloat("/sensorRanges/humRangeHigh", fetchedHumHigh, humRangeHigh)) {
       humRangeHigh = fetchedHumHigh;
       lastKnownHumRangeHigh = humRangeHigh; // Store successfully fetched value
@@ -1015,7 +1103,7 @@ void tempRangesUpdate() {
   } else {
       Serial.println("Failed to fetch humRangeHigh. Keeping previous value.");
   }
-
+ 
   if (getFirebaseFloat("/sensorRanges/humRangeLow", fetchedHumLow, humRangeLow)) {
       humRangeLow = fetchedHumLow;
       lastKnownHumRangeLow = humRangeLow; // Store successfully fetched value
@@ -1024,34 +1112,34 @@ void tempRangesUpdate() {
       Serial.println("Failed to fetch humRangeLow. Keeping previous value.");
   }
 }
-
+ 
 void controlActuatorAuto() {
   // Use last known ranges if offline, otherwise use current (potentially just updated) ranges
   float currentTempLow = isOffline ? lastKnownTempRangeLow : tempRangeLow;
   float currentTempHigh = isOffline ? lastKnownTempRangeHigh : tempRangeHigh;
   float currentHumLow = isOffline ? lastKnownHumRangeLow : humRangeLow;
   float currentHumHigh = isOffline ? lastKnownHumRangeHigh : humRangeHigh;
-
+ 
   // Debug prints for sensor values and thresholds being used
   Serial.printf("Auto control -> Temp: %.2f, Humidity: %.2f\n", temperature, humidity);
   Serial.printf("Using Ranges -> TempLow: %.2f, TempHigh: %.2f, HumLow: %.2f, HumHigh: %.2f %s\n",
                 currentTempLow, currentTempHigh, currentHumLow, currentHumHigh, isOffline ? "(Offline - Last Known)" : "(Online)");
-
+ 
   // Hysteresis margins, so that actuators would not destroy themselves (rapid switching) when readings are in threshold edge
   const float tempMargin = 1.0;  // Temperature margin in °C
   const float humMargin  = 2.0;  // Humidity margin in %
-
+ 
   // Hysteresis delay (in milliseconds) - Consider if still needed with range usage change
   const unsigned long hysteresisDelay = 2000; // 2 seconds
-
+ 
   // Store current time
   unsigned long now = millis();
-
+ 
   // Compute desired states using the refined logic (without hysteresis initially)
   bool desiredFan = false;
   bool desiredVent = false;
   bool desiredMist = false;
-
+ 
   // Actuator control logic
   if (temperature > currentTempHigh) {
       // High Temperature: Turn on fan and vent.
@@ -1078,7 +1166,7 @@ void controlActuatorAuto() {
       desiredFan = false; // Fan primarily for cooling, keep off if temp is ok.
       desiredVent = false; // Vent primarily for cooling/dehumidifying.
       desiredMist = false; // Mist primarily for cooling/humidifying.
-
+ 
       if (humidity < currentHumLow) {
           // Humidity Low: Turn on mist.
           desiredMist = true;
@@ -1088,8 +1176,8 @@ void controlActuatorAuto() {
           desiredVent = true;
       }
   }
-
-
+ 
+ 
   // Apply Hysteresis
   static unsigned long lastFanChangeTime = 0;
   static unsigned long lastVentChangeTime = 0;
@@ -1097,7 +1185,7 @@ void controlActuatorAuto() {
   static bool lastDesiredFan = fanStatus;
   static bool lastDesiredVent = ventStatus;
   static bool lastDesiredMist = mistStatus;
-
+ 
   // Update status only if the desired state has changed AND enough time has passed
   if (desiredFan != fanStatus && (desiredFan != lastDesiredFan || now - lastFanChangeTime > hysteresisDelay)) {
       fanStatus = desiredFan;
@@ -1115,8 +1203,8 @@ void controlActuatorAuto() {
   lastDesiredFan = desiredFan;
   lastDesiredVent = desiredVent;
   lastDesiredMist = desiredMist;
-
-
+ 
+ 
   // Update actuator states in Firebase ONLY if online and Firebase is ready
   if (!isOffline && app.ready()) {
       Serial.println("Updating actuator states in Firebase (Auto Mode)...");
@@ -1126,51 +1214,82 @@ void controlActuatorAuto() {
   } else {
       Serial.println("Skipping Firebase actuator state update (Offline or Firebase not ready).");
   }
-
+ 
   // Apply the actuator commands locally regardless of network state
   Serial.printf("Applying local actuator states: Fan=%s, Vent=%s, Mist=%s\n",
                 fanStatus ? "ON" : "OFF", ventStatus ? "OPEN" : "CLOSED", mistStatus ? "ON" : "OFF");
-  digitalWrite(fanPin, fanStatus ? HIGH : LOW);
+  digitalWrite(fanPin, fanStatus ? LOW : HIGH);  // INVERTED for relay: LOW to turn ON, HIGH to turn OFF
   mistPumpControl(mistStatus); // Handles its own timing/logic
-  ventServoControl(ventStatus, servoAngle); // Pass servoAngle by value if not modified inside
-}
 
-// Helper function for vent servo control
-void ventServoControl(bool ventStatus, int servoAngle) {
-  if (ventStatus) {
-    servoAngle = 180;  // Vent open
-    ventServo.write(servoAngle);  // Set the servo to open position
-    Serial.print("Servo status: ");
-    Serial.println("Vent Open (180 degrees)");
-  } else {
-    servoAngle = 0;  // Vent closed
-    ventServo.write(servoAngle);  // Set the servo to closed position
-    Serial.print("Servo status: ");
-    Serial.println("Vent Closed (0 degrees)");
+  // Vent control using linear actuator
+  // ventStatus: true for OPEN, false for CLOSED (desired logical state of the vent)
+  // actualVentStateIsExtended: true if actuator is physically EXTENDED, false if physically RETRACTED
+  // New mapping: Vent OPEN means actuator RETRACTED. Vent CLOSED means actuator EXTENDED.
+
+  bool desiredActuatorToBeExtended = !ventStatus; // If vent should be OPEN (ventStatus=true), actuator should NOT be extended (false -> retracted).
+                                                  // If vent should be CLOSED (ventStatus=false), actuator SHOULD be extended (true).
+
+  if (desiredActuatorToBeExtended != actualVentStateIsExtended) {
+    if (desiredActuatorToBeExtended) { // Actuator needs to be extended (to close the vent)
+      Serial.println("Auto mode: Vent target: CLOSED. Extending actuator.");
+      extendActuator();
+      actualVentStateIsExtended = true; // Update physical state: actuator is now extended
+    } else { // Actuator needs to be retracted (to open the vent)
+      Serial.println("Auto mode: Vent target: OPEN. Retracting actuator.");
+      retractActuator();
+      actualVentStateIsExtended = false; // Update physical state: actuator is now retracted
+    }
   }
 }
  
 // Helper function to handle mist pump control with a cycle to avoid overheating
 void mistPumpControl(bool mistStatus) {
   unsigned long currentMillis = millis();
- 
+
   // If mistStatus is false, ensure mist is off and return
   if (!mistStatus) {
     misting = false;
-    digitalWrite(mistPin, LOW);
+    digitalWrite(mistPin, HIGH);  // INVERTED for relay: HIGH to turn OFF
     return;
   }
- 
+
   // Only proceed with misting cycle if mistStatus is true
   if (!misting && currentMillis - mistPumpMillis >= 300000) {  // 5 minutes (300000ms) have passed since last mist
     misting = true;
     lastMistStart = currentMillis;
-    digitalWrite(mistPin, HIGH);  // Start misting
+    digitalWrite(mistPin, LOW);  // INVERTED for relay: LOW to turn ON
   } else if (misting && currentMillis - lastMistStart >= 120000) {  // Has been misting for 2 minutes (120000ms)
     misting = false;
-    digitalWrite(mistPin, LOW);  // Stop misting
+    digitalWrite(mistPin, HIGH);  // INVERTED for relay: HIGH to turn OFF
     mistPumpMillis = currentMillis;  // Reset 5-minute timer
   }
+}
+ 
+// Add Linear Actuator Control Functions
+void extendActuator() {
+  Serial.println("Extending actuator...");
+  // To physically EXTEND the actuator (Vent CLOSED with reversed logic)
+  analogWrite(RPWM, 255);  // Full speed one direction (assuming this was extend before, now it is still extend)
+  analogWrite(LPWM, 0);    // Stop other direction
+  delay(moveTime);         // Run for defined duration
+  stopActuator();
+  Serial.println("Actuator extended (Vent Closed).");
+}
+
+void retractActuator() {
+  Serial.println("Retracting actuator...");
+  // To physically RETRACT the actuator (Vent OPEN with reversed logic)
+  analogWrite(RPWM, 0);    // Stop one direction
+  analogWrite(LPWM, 255);  // Full speed other direction (assuming this was retract before, now it is still retract)
+  delay(moveTime);         // Run for defined duration
+  stopActuator();
+  Serial.println("Actuator retracted (Vent Open).");
+}
+
+void stopActuator() {
+  analogWrite(RPWM, 0); // Stop motor
+  analogWrite(LPWM, 0); // Stop motor
+  Serial.println("Actuator stopped.");
 }
  
 // Function to read DHT22 temperature sensor using DHTesp
@@ -1221,7 +1340,7 @@ float readWaterTemperature() {
   }
   return waterTemp;
 }
-
+ 
 // Water Level Sensor reading (float switch)
 bool readWaterLevel() {
   return digitalRead(wlPin) == LOW; // Assuming LOW means sufficient water in a normally closed setup
@@ -1293,7 +1412,7 @@ float readTDS() {
  
   return tdsValue;
 }
-
+ 
 // For the sensor history directory
 String generateRandomID(int length) {
   const char charset[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -1311,13 +1430,13 @@ String generateRandomID(int length) {
   
   return result;
 }
-
+ 
 // Function to check actual internet/Firebase connectivity
 void checkInternetConnection() {
     Serial.println("Checking internet connectivity via Firebase read...");
     Database.get<String>(aClient, "/sensorData/timestamp");
     unsigned long currentMillis = millis();
-
+ 
     if (checkFirebaseError("internet connectivity check")) {
         // Success! Internet is available.
         if (!internetAvailable) {
@@ -1346,7 +1465,7 @@ void checkInternetConnection() {
         }
     }
 }
-
+ 
 // Helper function to get the best estimate of the current Epoch time in milliseconds
 unsigned long long getCurrentTimestampEstimate() {
     // Use lastSuccessfulTimestamp if available, otherwise fallback to uptime approx.
@@ -1364,7 +1483,7 @@ unsigned long long getCurrentTimestampEstimate() {
         return approxTime;
     }
 }
-
+ 
 // Helper function to update the time sync point after a successful Firebase interaction
 void updateLastSuccessfulTime(unsigned long long firebaseTimestamp) {
     if (firebaseTimestamp != 0) {
@@ -1380,7 +1499,7 @@ void updateLastSuccessfulTime(unsigned long long firebaseTimestamp) {
         Serial.printf("Estimated time sync point: %llu ms epoch (approx)\n", lastSuccessfulTimestamp);
     }
 }
-
+ 
 // Initialize SPIFFS
 void initializeSPIFFS() {
   if (!SPIFFS.begin(true)) { // Format SPIFFS if mount fails
@@ -1389,7 +1508,7 @@ void initializeSPIFFS() {
     return;
   }
   Serial.println("SPIFFS mounted successfully.");
-
+ 
   // Optional: List files for debugging
   fs::File root = SPIFFS.open("/"); // Use fs::File
   fs::File file = root.openNextFile(); // Use fs::File
@@ -1401,14 +1520,13 @@ void initializeSPIFFS() {
   }
   root.close();
 }
-
+ 
 // Helper to create the JSON object for sensor data
 bool createSensorJson(JsonObject& doc, float temperature, float humidity, float carbonDioxide, float lightLevel, bool waterLevel, float waterTemp, float pH, float tds) {
     if (!validateSensorData(temperature, humidity, waterTemp)) {
         Serial.println("createSensorJson: Invalid sensor data detected by validation function.");
         return false; // Indicate invalid data
     }
-
     doc["temperature"] = round(temperature * 100.0) / 100.0; // 2 decimal places
     doc["humidity"] = round(humidity * 100.0) / 100.0;
     doc["carbonDioxide"] = round(carbonDioxide * 100.0) / 100.0;
@@ -1417,15 +1535,15 @@ bool createSensorJson(JsonObject& doc, float temperature, float humidity, float 
     doc["waterTemp"] = round(waterTemp * 100.0) / 100.0;
     doc["pH"] = round(pH * 100.0) / 100.0;
     doc["tds"] = round(tds * 100.0) / 100.0;
-
+ 
     // Add the estimated timestamp
     unsigned long long currentTs = getCurrentTimestampEstimate();
-    doc["timestamp"] = currentTs; // Add as epoch milliseconds
+    doc["timestamp"] = currentTs;
     Serial.printf("Timestamp added to JSON: %llu\n", currentTs);
-
+ 
     return true; // Indicate success
 }
-
+ 
 // Save sensor data JSON object to SPIFFS file (append)
 bool saveDataLocally(const JsonObject& sensorData) {
   fs::File file = SPIFFS.open(OFFLINE_HISTORY_FILE, FILE_APPEND);
@@ -1433,19 +1551,19 @@ bool saveDataLocally(const JsonObject& sensorData) {
     Serial.println("Failed to open offline history file for appending.");
     return false;
   }
-
+ 
   // Serialize JSON to file
   if (serializeJson(sensorData, file) == 0) {
     Serial.println("Failed to write sensor data to offline file.");
     file.close();
     return false;
   }
-
+ 
   // Add a newline character to separate JSON objects (JSON Lines format)
   file.println();
   file.close();
   Serial.println("Sensor data saved locally.");
-
+ 
   // Optional: Check file size and implement rotation/deletion if it gets too large
   file = SPIFFS.open(OFFLINE_HISTORY_FILE, FILE_READ);
     if (file) { // Check if file opened successfully
@@ -1461,7 +1579,7 @@ bool saveDataLocally(const JsonObject& sensorData) {
     }
   return true;
 }
-
+ 
 // Upload stored offline history data
 void uploadOfflineHistory() {
   // Check combined offline state
@@ -1469,16 +1587,16 @@ void uploadOfflineHistory() {
     Serial.println("Cannot upload offline history: Network offline/unavailable or Firebase not ready.");
     return;
   }
-
+ 
   fs::File file = SPIFFS.open(OFFLINE_HISTORY_FILE, FILE_READ);
   if (!file || file.size() == 0) {
     if (file) file.close();
     Serial.println("No offline history data to upload.");
     return;
   }
-
+ 
   Serial.println("Starting upload of offline sensor history...");
-
+ 
   // Create a temporary file to write data that *fails* to upload
   String tempFileName = String(OFFLINE_HISTORY_FILE) + ".tmp";
   fs::File tempFile = SPIFFS.open(tempFileName, FILE_WRITE);
@@ -1487,18 +1605,18 @@ void uploadOfflineHistory() {
       file.close();
       return;
   }
-
+ 
   bool allUploadedSuccessfully = true;
   int recordsUploaded = 0;
   int recordsFailed = 0;
-
+ 
   // Read file line by line
   while (file.available()) {
     String line = file.readStringUntil('\n');
-    line.trim(); // Remove potential whitespace/newlines
-
+    line.trim();
+ 
     if (line.length() == 0) continue; // Skip empty lines
-
+ 
     // Check network connection before each upload attempt
     if (WiFi.status() != WL_CONNECTED || !app.ready()) { // Also check Firebase readiness
         Serial.println("Network connection lost or Firebase not ready during offline sync. Aborting.");
@@ -1510,10 +1628,10 @@ void uploadOfflineHistory() {
         }
         break; // Exit the loop
     }
-
+ 
     DynamicJsonDocument doc(1024); // Document size
     DeserializationError error = deserializeJson(doc, line);
-
+ 
     if (error) {
       Serial.print("Failed to parse line from offline file: ");
       Serial.println(line);
@@ -1525,9 +1643,9 @@ void uploadOfflineHistory() {
       allUploadedSuccessfully = false;
       continue;
     }
-
+ 
     JsonObject sensorData = doc.as<JsonObject>();
-
+ 
     // Attempt to upload this record using the dedicated function
     if (uploadOfflineRecord(sensorData)) { // Pass the parsed JSON object
       recordsUploaded++;
@@ -1536,31 +1654,31 @@ void uploadOfflineHistory() {
     } else {
       Serial.println("Failed to upload offline record. Keeping it for later.");
       // Write the failed record back to the temp file
-      serializeJson(sensorData, tempFile); // Use the parsed object
-      tempFile.println(); // Add newline
+      serializeJson(sensorData, tempFile);
+      tempFile.println();
       recordsFailed++;
       allUploadedSuccessfully = false;
       delay(500);
     }
      yield(); // Allow background tasks (like WiFi) to run
   }
-
+ 
   // Close both files
   file.close();
   tempFile.close();
-
+ 
   // Replace the original file with the temporary file (which contains only failed/remaining records)
   SPIFFS.remove(OFFLINE_HISTORY_FILE);
   SPIFFS.rename(tempFileName, OFFLINE_HISTORY_FILE);
-
+ 
   Serial.printf("Offline history sync finished. Uploaded: %d, Failed/Kept: %d\n", recordsUploaded, recordsFailed);
-
+ 
   // Update time sync point ONCE after the batch upload if any records succeeded
   if (recordsUploaded > 0) {
       updateLastSuccessfulTime(); // Use estimation after offline batch upload
       Serial.println("Updated time sync point after offline batch upload (using estimation).");
   }
-
+ 
   if (recordsFailed == 0) {
       Serial.println("All offline data uploaded successfully.");
       file = SPIFFS.open(OFFLINE_HISTORY_FILE, FILE_READ); // Use FILE_READ
@@ -1576,7 +1694,7 @@ void uploadOfflineHistory() {
       Serial.println("Some records remain in the offline history file.");
   }
 }
-
+ 
 // Uploads a single record parsed from the offline file, using the stored timestamp
 bool uploadOfflineRecord(const JsonObject& sensorData) {
     // Check combined offline state
@@ -1584,7 +1702,7 @@ bool uploadOfflineRecord(const JsonObject& sensorData) {
         Serial.println("Upload offline record skipped: Network offline/unavailable or Firebase not ready.");
         return false;
     }
-
+ 
     // Extract values from JsonObject
     float temp = sensorData["temperature"].as<float>();
     float hum = sensorData["humidity"].as<float>();
@@ -1595,7 +1713,7 @@ bool uploadOfflineRecord(const JsonObject& sensorData) {
     float ph_val = sensorData["pH"].as<float>();
     float tds_val = sensorData["tds"].as<float>();
     unsigned long long storedTimestamp = sensorData["timestamp"].as<unsigned long long>();
-
+ 
     // Validate core sensor data using the helper function
     if (!validateSensorData(temp, hum, wt)) {
         Serial.println("UPLOAD OFFLINE RECORD SUSPENDED: Invalid sensor data detected by validation function.");
@@ -1606,12 +1724,12 @@ bool uploadOfflineRecord(const JsonObject& sensorData) {
         Serial.println("UPLOAD OFFLINE RECORD SUSPENDED: Invalid or missing timestamp in stored data.");
         return false; // Indicate failure/skip due to bad timestamp
     }
-
+ 
     // Generate a unique ID
     String uniqueID = "o" + String(millis()) + "-" + generateRandomID(8); // Prefix 'o' for offline upload
     String basePath = "/sensorHistory/" + uniqueID;
     Serial.printf("Attempting to upload offline record data entry with unique ID: %s (Timestamp: %llu)\n", uniqueID.c_str(), storedTimestamp);
-
+ 
     // Set each field individually using helpers
     bool success = true;
     success &= setFirebaseNumber(basePath + "/temperature", temp);
@@ -1622,7 +1740,7 @@ bool uploadOfflineRecord(const JsonObject& sensorData) {
     success &= setFirebaseNumber(basePath + "/waterTemp", wt);
     success &= setFirebaseNumber(basePath + "/pH", ph_val);
     success &= setFirebaseNumber(basePath + "/tds", tds_val);
-
+ 
     // Use the stored timestamp - use setFirebaseNumber for unsigned long long
     success &= Database.set<number_t>(aClient, basePath + "/timestamp", number_t((double)storedTimestamp)); // Cast to double for number_t
     success &= checkFirebaseError("set offline timestamp at " + basePath + "/timestamp"); // Check error specifically for timestamp
