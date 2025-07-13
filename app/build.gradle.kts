@@ -57,6 +57,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "1.8"
@@ -97,6 +98,7 @@ dependencies {
     implementation(libs.protobuf.javalite)
     implementation(libs.gson)
     implementation(libs.pullrefresh)
+    coreLibraryDesugaring(libs.desugar)
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     ksp(libs.androidx.room.compiler)
