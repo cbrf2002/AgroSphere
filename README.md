@@ -1,3 +1,25 @@
+<<<<<<< HEAD
+=======
+<div align="center">
+  <img src="assets/AGS.png" alt="AgroSphere Logo" width="150"/>
+  <h1>AgroSphere</h1>
+  <p>IoT-Based Automated Greenhouse Monitoring & Climate Control by <b>AGROBROS</b></p>
+
+  <!-- Badges -->
+  <p>
+    <img src="https://img.shields.io/badge/ESP32-E7332C?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32 Badge"/>
+    <img src="https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++ Badge"/>
+    <img src="https://img.shields.io/badge/Arduino-00979D?style=for-the-badge&logo=arduino&logoColor=white" alt="Arduino Badge"/>
+    <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase Badge"/>
+    <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android Badge"/>
+    <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin Badge"/>
+    <img src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose Badge"/>
+    <img src="https://img.shields.io/badge/Material_Design_3-757575?style=for-the-badge&logo=materialdesign&logoColor=white" alt="Material 3 Badge"/>
+    <img src="https://img.shields.io/badge/Architecture-MVVM-blue?style=for-the-badge" alt="MVVM Badge"/>
+  </p>
+</div>
+
+>>>>>>> 8333e81c54078574b4e1ef9654d2549b9b25dbe8
 # AgroSphere - Technical Documentation
 
 ## 1. Project Overview
