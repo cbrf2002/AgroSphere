@@ -32,13 +32,13 @@
 ## 1. Project Overview
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap; gap: 10px; padding: 10px 0;">
-  <img src="public/agrosphere-login.webp" style="max-height: 250px;" alt="AgroSphere Login Screen"/>
-  <img src="public/agrosphere-googlg.webp" style="max-height: 250px;" alt="AgroSphere Google Sign-In"/>
-  <img src="public/agrosphere-dash-light.webp" style="max-height: 250px;" alt="AgroSphere Dashboard Light Mode"/>
-  <img src="public/agrosphere-monitor.webp" style="max-height: 250px;" alt="AgroSphere Monitor Screen"/>
-  <img src="public/agrosphere-notif.webp" style="max-height: 250px;" alt="AgroSphere Notifications"/>
-  <img src="public/agrosphere-notifpage.webp" style="max-height: 250px;" alt="AgroSphere Notifications Page"/>
-  <img src="public/agrosphere-pref.webp" style="max-height: 250px;" alt="AgroSphere Preferences"/>
+  <img src="public/agrosphere-login.webp" style="max-height: 50px;" alt="AgroSphere Login Screen"/>
+  <img src="public/agrosphere-googlg.webp" style="max-height: 50px;" alt="AgroSphere Google Sign-In"/>
+  <img src="public/agrosphere-dash-light.webp" style="max-height: 50px;" alt="AgroSphere Dashboard Light Mode"/>
+  <img src="public/agrosphere-monitor.webp" style="max-height: 50px;" alt="AgroSphere Monitor Screen"/>
+  <img src="public/agrosphere-notif.webp" style="max-height: 50px;" alt="AgroSphere Notifications"/>
+  <img src="public/agrosphere-notifpage.webp" style="max-height: 50px;" alt="AgroSphere Notifications Page"/>
+  <img src="public/agrosphere-pref.webp" style="max-height: 50px;" alt="AgroSphere Preferences"/>
 </div>
 
 AgroSphere is an IoT-based system designed, implemented, and validated for automated monitoring and internal climate control within a prototype greenhouse environment. It aims to demonstrate the feasibility of applying IoT technology to enhance precision agriculture concepts, improve resource efficiency, and bolster food security strategies, particularly by showcasing a functional and user-friendly system adaptable for resource-constrained environments. The system integrates hardware (ESP32, sensors, actuators), cloud services (Firebase), and a mobile application (Android) for comprehensive greenhouse management.
