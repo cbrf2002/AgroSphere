@@ -1,28 +1,45 @@
-<<<<<<< HEAD
-=======
 <div align="center">
   <img src="assets/AGS.png" alt="AgroSphere Logo" width="150"/>
   <h1>AgroSphere</h1>
   <p>IoT-Based Automated Greenhouse Monitoring & Climate Control by <b>AGROBROS</b></p>
 
+  <div align="center">
+    <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+      <img src="public/AppCon.png" width="80" alt="AppCon Logo"/>
+      <span style="margin-left: 10px;"><b>AppCon2024 Top 20 Finalist</b></span>
+    </div>
+  </div>
+
   <!-- Badges -->
   <p>
-    <img src="https://img.shields.io/badge/ESP32-E7332C?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32 Badge"/>
-    <img src="https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++ Badge"/>
-    <img src="https://img.shields.io/badge/Arduino-00979D?style=for-the-badge&logo=arduino&logoColor=white" alt="Arduino Badge"/>
-    <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase Badge"/>
-    <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android Badge"/>
-    <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin Badge"/>
-    <img src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose Badge"/>
-    <img src="https://img.shields.io/badge/Material_Design_3-757575?style=for-the-badge&logo=materialdesign&logoColor=white" alt="Material 3 Badge"/>
-    <img src="https://img.shields.io/badge/Architecture-MVVM-blue?style=for-the-badge" alt="MVVM Badge"/>
+    <img alt="Version" src="https://img.shields.io/badge/version-1.50-blue"/>
+    <img alt="License" src="https://img.shields.io/badge/License-Demo%20Only-green"/>
+    <br>
+    <img alt="ESP32" src="https://img.shields.io/badge/ESP32-E7332C?logo=espressif&logoColor=white"/>
+    <img alt="C++" src="https://img.shields.io/badge/C++-00599C?logo=cplusplus&logoColor=white"/>
+    <img alt="Arduino" src="https://img.shields.io/badge/Arduino-00979D?logo=arduino&logoColor=white"/>
+    <img alt="Firebase" src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black"/>
+    <img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white"/>
+    <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white"/>
+    <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack_Compose-4285F4?logo=jetpackcompose&logoColor=white"/>
+    <img alt="Material Design 3" src="https://img.shields.io/badge/Material_Design_3-757575?logo=materialdesign&logoColor=white"/>
+    <img alt="Architecture" src="https://img.shields.io/badge/Architecture-MVVM-blue"/>
   </p>
 </div>
 
->>>>>>> 8333e81c54078574b4e1ef9654d2549b9b25dbe8
 # AgroSphere - Technical Documentation
 
 ## 1. Project Overview
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap; gap: 10px; padding: 10px 0;">
+  <img src="public/agrosphere-login.webp" style="max-height: 250px;" alt="AgroSphere Login Screen"/>
+  <img src="public/agrosphere-googlg.webp" style="max-height: 250px;" alt="AgroSphere Google Sign-In"/>
+  <img src="public/agrosphere-dash-light.webp" style="max-height: 250px;" alt="AgroSphere Dashboard Light Mode"/>
+  <img src="public/agrosphere-monitor.webp" style="max-height: 250px;" alt="AgroSphere Monitor Screen"/>
+  <img src="public/agrosphere-notif.webp" style="max-height: 250px;" alt="AgroSphere Notifications"/>
+  <img src="public/agrosphere-notifpage.webp" style="max-height: 250px;" alt="AgroSphere Notifications Page"/>
+  <img src="public/agrosphere-pref.webp" style="max-height: 250px;" alt="AgroSphere Preferences"/>
+</div>
 
 AgroSphere is an IoT-based system designed, implemented, and validated for automated monitoring and internal climate control within a prototype greenhouse environment. It aims to demonstrate the feasibility of applying IoT technology to enhance precision agriculture concepts, improve resource efficiency, and bolster food security strategies, particularly by showcasing a functional and user-friendly system adaptable for resource-constrained environments. The system integrates hardware (ESP32, sensors, actuators), cloud services (Firebase), and a mobile application (Android) for comprehensive greenhouse management.
 
@@ -140,52 +157,14 @@ AgroSphere employs a multi-tier architecture:
 *   **Data Optimization:** Multi-level caching in the app resulted in an estimated ~8.7% reduction in Firebase data transfer.
 *   **Usability:** High task completion rates (>93%) and positive user feedback (>85% satisfaction) in testing.
 
-## 9. File Structure
+## License
 
-```
-AgroSphere/
-├── .gradle/
-├── .idea/
-├── app/                          # Android Application Module
-│   ├── build/
-│   ├── libs/
-│   ├── src/
-│   │   ├──androidTest/
-│   │   ├── main/
-│   │   │   ├── java/com/fsvdevs/agrosphere/
-│   │   │   │   ├── data/         # Data models, repositories, local data sources (Room, Prefs)
-│   │   │   │   ├── di/           # Dependency Injection (if used)
-│   │   │   │   ├── models/       # Data classes (SensorData, ActuatorData, etc.)
-│   │   │   │   ├── repository/   # Repository implementations
-│   │   │   │   ├── routes/       # Navigation routes definition
-│   │   │   │   ├── ui/           # Jetpack Compose UI elements (Screens, Composables)
-│   │   │   │   │   ├── dialog/   # Reusable dialog composables
-│   │   │   │   │   └── theme/    # Theming (Color, Shape, Theme, Type)
-│   │   │   │   ├── util/         # Utility classes (FirebaseHelper, NotificationHelper, etc.)
-│   │   │   │   ├── viewmodel/    # ViewModels
-│   │   │   │   └── MainActivity.kt # Main entry point activity
-│   │   │   ├── res/              # Android resources (drawables, layouts, mipmap, values, etc.)
-│   │   │   └── AndroidManifest.xml
-│   │   └── test/
-│   ├── .gitignore
-│   ├── build.gradle.kts          # App-level build script
-│   └── proguard-rules.pro
-├── build/
-├── ESP32_AGROSPHERE_PROD/        # ESP32 Firmware Code
-│   └── AGROSPHERE_PROD.ino
-├── gradle/
-│   └── wrapper/
-├── .gitignore
-├── build.gradle.kts              # Project-level build script
-├── gradle.properties
-├── gradlew
-├── gradlew.bat
-├── local.properties
-├── README.md                     # This file
-├── settings.gradle.kts
-└── gradle/libs.versions.toml     # Dependency versions catalog
-```
+**Copyright (c) 2025 AgroBros**  
+*Charles Bryan Fabian, Jerson Sumalinog, Paul John Vicente*
 
-## 10. Conclusion (Based on Prototype Validation)
+### Terms and Conditions
 
-AgroSphere successfully demonstrates the feasibility of an integrated IoT system for automated greenhouse monitoring and control within a prototype environment. The system met or exceeded performance expectations for real-time monitoring, responsive actuator control (both manual and automatic), logical automatic control execution, alert reliability, and system resilience during fault tolerance tests. The effective offline data buffering and synchronization capabilities, coupled with data transfer optimization via caching, highlight its potential for deployment in areas with unreliable connectivity. High usability scores affirm the user-centered design approach. While validated on a prototype, AgroSphere provides a robust blueprint and proof-of-concept for accessible smart agriculture technology, paving the way for future scaling and field testing to realize its potential in improving resource efficiency and supporting sustainable agriculture.
+This project is provided **strictly for demonstration and educational viewing purposes only**.
+
+**Important Restrictions:**  
+You may **not** copy, modify, distribute, or use this code for any purpose (commercial or otherwise) without explicit written permission from the authors.
