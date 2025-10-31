@@ -5,8 +5,8 @@
 
   <div align="center">
     <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0;">
-      <img src="public/AppCon.png" width="80" alt="AppCon Logo"/>
-      <span style="margin-left: 10px;"><b>AppCon2024 Top 20 Finalist</b></span>
+      <img src="public/AppCon.png" width="120" alt="AppCon Logo"/>
+      <p><b>AppCon2024 Top 20 Finalist</b></p>
     </div>
   </div>
 
