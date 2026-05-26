@@ -167,4 +167,4 @@ AgroSphere employs a multi-tier architecture:
 This project is provided **strictly for viewing purposes only**.
 
 **Important Restrictions:**  
-You may **not** copy, modify, distribute, or use this code for any purpose (commercial or otherwise) without explicit written permission from the authors.
+You may **not** copy, modify, distribute, or use this code for any purpose (commercial or otherwise) without explicit written permission from the authors. 
